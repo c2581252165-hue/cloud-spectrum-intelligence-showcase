@@ -28,20 +28,26 @@ docs/           效果图说明
 
 ## 效果预览
 
-![预览图 01](docs/images/preview-01.png)
+以下为系统运行界面截图，更多截图见 [docs/preview.md](docs/preview.md)。
 
-![预览图 02](docs/images/preview-02.png)
+![系统预览 01](docs/images/preview-01.png)
 
-![预览图 03](docs/images/preview-03.png)
+![系统预览 02](docs/images/preview-02.png)
 
-更多效果图见 [docs/preview.md](docs/preview.md)。
+![系统预览 03](docs/images/preview-03.png)
+
+![系统预览 04](docs/images/preview-04.png)
+
+![系统预览 05](docs/images/preview-05.png)
+
+![系统预览 06](docs/images/preview-06.png)
 
 ## 脱敏说明
 
 - 已删除真实 `.env`。
 - 已删除 Google 服务账号私钥 JSON。
 - 已移除硬编码大模型 API Key、地图 token、个人联系方式。
-- 已移除 `.venv`、安装包、原始 PPT/PDF、模型权重、遥感数据、日志和运行缓存。
+- 已移除 `.venv`、安装包、模型权重、遥感数据、日志、运行缓存和其他非代码大文件。
 - GEE、地图和大模型能力需通过 `backend/.env.example` 自行配置。
 
 ## 版权声明
