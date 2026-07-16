@@ -1,0 +1,824 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云谱智探</title>
+
+    <!-- 引入字体库：增加中式书法字体用于Logo -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 核心脚本库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'void': '#041129',
+                        'cyber-blue': '#00f3ff',
+                        'cyber-pink': '#ff0055',
+                        'cyber-purple': '#bc13fe',
+                        'cyber-gold': '#ffd700',
+                        'panel-bg': 'rgba(10, 30, 60, 0.75)',
+                    },
+                    fontFamily: {
+                        'head': ['Orbitron', 'sans-serif'],
+                        'body': ['Rajdhani', 'sans-serif'],
+                        'code': ['Share Tech Mono', 'monospace'],
+                        'art': ['Ma Shan Zheng', 'cursive'], /* 艺术字字体 */
+                    },
+                    backgroundImage: {
+                        'grid-pattern': "linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px)",
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* --- 核心视觉重置与特效 --- */
+        body {
+            background-color: #041129;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #061a33; }
+        ::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 3px; }
+
+        /* 全局光标 */
+        #cursor-dot, #cursor-ring {
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%);
+        }
+        #cursor-dot { width: 8px; height: 8px; background: #00f3ff; border-radius: 50%; box-shadow: 0 0 10px #00f3ff; }
+        #cursor-ring { width: 40px; height: 40px; border: 1px solid rgba(0,243,255,0.5); border-radius: 50%; transition: width 0.2s, height 0.2s; }
+
+        /* 背景动画 */
+        .bg-grid-anim {
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg) translateY(0);
+            animation: gridMove 20s linear infinite;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 40%, black 100%);
+        }
+        @keyframes gridMove { from { background-position: 0 0; } to { background-position: 0 50px; } }
+
+        /* 玻璃拟态与边框 */
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.1);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .glass-panel:hover {
+            border-color: rgba(0, 243, 255, 0.5);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+        }
+
+        /* 科技角标 */
+        .tech-border::before {
+            content: ''; position: absolute; top: -1px; left: -1px; width: 20px; height: 20px;
+            border-top: 2px solid #00f3ff; border-left: 2px solid #00f3ff;
+            animation: corner-pulse 2s ease-in-out infinite;
+        }
+        .tech-border::after {
+            content: ''; position: absolute; bottom: -1px; right: -1px; width: 20px; height: 20px;
+            border-bottom: 2px solid #00f3ff; border-right: 2px solid #00f3ff;
+            animation: corner-pulse 2s ease-in-out infinite 1s;
+        }
+        @keyframes corner-pulse {
+            0%, 100% { border-color: #00f3ff; }
+            50% { border-color: #bc13fe; }
+        }
+
+        .clip-slant {
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+        }
+
+        /* 故障特效 */
+        .glitch { position: relative; }
+        .glitch::before, .glitch::after {
+            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.8;
+        }
+        .glitch::before { color: #ff0055; z-index: -1; animation: glitch-anim-1 2s infinite linear alternate-reverse; }
+        .glitch::after { color: #00f3ff; z-index: -2; animation: glitch-anim-2 3s infinite linear alternate-reverse; }
+        @keyframes glitch-anim-1 { 0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px,0); } 100% { clip-path: inset(60% 0 10% 0); transform: translate(2px,0); } }
+        @keyframes glitch-anim-2 { 0% { clip-path: inset(10% 0 60% 0); transform: translate(2px,0); } 100% { clip-path: inset(80% 0 5% 0); transform: translate(-2px,0); } }
+
+        /* 艺术字 Logo 特效 */
+        .art-logo {
+            background: linear-gradient(to bottom, #fff 30%, #00f3ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+            filter: drop-shadow(0 0 5px rgba(0,243,255,0.8));
+            animation: logo-breathe 3s ease-in-out infinite;
+        }
+        @keyframes logo-breathe {
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(0,243,255,0.8)); }
+            50% { filter: drop-shadow(0 0 15px rgba(0,243,255,1)) drop-shadow(0 0 30px rgba(188,19,254,0.4)); }
+        }
+
+        /* 满屏网格脉冲波效果 */
+        .hex-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            background-image:
+                linear-gradient(30deg, rgba(0,243,255,0.02) 12%, transparent 12.5%),
+                linear-gradient(150deg, rgba(0,243,255,0.02) 12%, transparent 12.5%),
+                linear-gradient(210deg, rgba(0,243,255,0.02) 12%, transparent 12.5%),
+                linear-gradient(330deg, rgba(0,243,255,0.02) 12%, transparent 12.5%);
+            background-size: 60px 100px;
+            opacity: 0.5;
+        }
+
+        /* 滚动淡入动效 */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.8s, transform 0.8s;
+        }
+        .fade-in-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 全球档案：图片卡片风格 */
+        .archive-card {
+            position: relative;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.3s;
+        }
+        .archive-card:hover {
+            border-color: #00f3ff;
+            transform: scale(1.02);
+        }
+        .archive-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+            transition: 0.5s;
+            filter: grayscale(100%);
+        }
+        .archive-card:hover .archive-img {
+            opacity: 1;
+            filter: grayscale(0%);
+        }
+
+        /* 扫描线 */
+        .scanline {
+            width: 100%; height: 100vh; position: fixed; top: 0; left: 0; pointer-events: none; z-index: 50;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+        }
+
+        /* 团队卡片列表式布局优化 */
+        .team-list-item {
+            transition: all 0.4s cubic-bezier(.4,0,.2,1);
+            border-left: 2px solid transparent;
+            position: relative;
+        }
+        .team-list-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-left-color: #00f3ff;
+            padding-left: 1rem;
+            box-shadow: 0 0 20px rgba(0,243,255,0.1);
+        }
+        .team-list-item::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 0; height: 100%;
+            background: linear-gradient(90deg, rgba(0,243,255,0.08), transparent);
+            transition: width 0.4s;
+        }
+        .team-list-item:hover::after {
+            width: 100%;
+        }
+
+        /* 团队板块悬浮动效 */
+        .archive-cube {
+            transition: all 0.4s cubic-bezier(.4,0,.2,1);
+        }
+        .archive-cube:hover {
+            box-shadow: 0 0 40px rgba(0,243,255,0.15);
+        }
+
+    </style>
+</head>
+<body class="font-body selection:bg-cyber-blue selection:text-black">
+
+<!-- 全局特效 -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+<div class="scanline"></div>
+<div class="hex-overlay"></div>
+<div id="webgl-container" class="fixed top-0 left-0 w-full h-full -z-10 opacity-80"></div>
+<div class="fixed bottom-0 w-full h-[50vh] bg-grid-pattern bg-grid-anim -z-20 opacity-30 pointer-events-none"></div>
+
+<!-- 1. 导航栏 -->
+<nav class="fixed top-0 w-full h-20 z-50 flex justify-between items-center px-8 border-b border-white/10 bg-void/80 backdrop-blur-md">
+    <div class="flex items-center gap-4">
+        <div class="w-10 h-10 border border-cyber-blue flex items-center justify-center animate-pulse">
+            <i class="fas fa-satellite-dish text-cyber-blue text-xl"></i>
+        </div>
+        <div>
+            <!-- 艺术字 Logo -->
+            <h1 class="font-art text-3xl tracking-wide art-logo">云谱智探</h1>
+            <p class="font-code text-[10px] text-gray-500 tracking-widest">云谱智探</p>
+        </div>
+    </div>
+    <div class="hidden md:flex gap-10 font-code text-sm tracking-wider">
+        <a href="#mission" class="hover:text-cyber-blue transition-colors">[ 任务简报 ]</a>
+        <a href="#tech" class="hover:text-cyber-blue transition-colors">[ 核心技术 ]</a>
+        <a href="#cases" class="hover:text-cyber-blue transition-colors">[ 全球档案 ]</a>
+        <a href="#team" class="hover:text-cyber-blue transition-colors">[ 指挥团队 ]</a>
+    </div>
+    <div class="font-code text-cyber-blue border border-cyber-blue/30 px-4 py-1 rounded-sm flex items-center gap-2">
+        <span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+        <span id="clock" class="text-white">LOADING TIME...</span>
+    </div>
+</nav>
+
+<!-- 2. Hero 区域 -->
+<section class="min-h-screen flex items-center justify-center relative px-6 pt-20" id="mission">
+    <div class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div class="z-10">
+            <div class="font-code text-cyber-pink mb-4 flex items-center gap-2">
+                <span class="w-2 h-2 bg-cyber-pink rounded-full animate-ping"></span>
+                ALERT: CLIMATE CRITICAL
+            </div>
+            <h1 class="font-head text-6xl md:text-8xl font-black leading-none mb-6 glitch" data-text="INVISIBLE THREAT">
+                INVISIBLE<br>THREAT
+            </h1>
+            <h2 class="font-body text-2xl text-gray-400 mb-8 border-l-4 border-cyber-blue pl-4">
+                看见不可见之物。<br>
+                <span class="text-white">全球像素级温室气体排放监测网络（CH4 / CO / N<sub>2</sub>O）。</span>
+            </h2>
+            <div class="bg-panel-bg p-6 border-l border-white/20 mb-10 max-w-xl backdrop-blur-sm">
+                <p class="font-code text-sm text-cyber-blue mb-2">> MISSION_BRIEFING</p>
+                <p class="text-gray-300 leading-relaxed">
+                    云谱智探 (MWGS) 利用 <span class="text-white font-bold">Sentinel-5P</span> 与 <span class="text-white font-bold">高光谱微纳卫星群</span>，
+                    结合深度学习算法，实时量化全球能源、农业与废弃物处理领域的温室气体排放与异常泄漏。
+                </p>
+            </div>
+            <div class="flex gap-6">
+                <button class="px-8 py-3 bg-cyber-blue/10 border border-cyber-blue text-cyber-blue font-head tracking-wider hover:bg-cyber-blue hover:text-black transition-all duration-300 clip-slant">
+                    启动监测链路
+                </button>
+            </div>
+        </div>
+
+        <!-- 右侧：数据仪表盘 -->
+        <div class="relative glass-panel p-6 tech-border hidden lg:block fade-in-up">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-head text-xl">LIVE SENSOR DATA</h3>
+                <div class="flex gap-2 font-code text-xs text-cyber-blue">UTC+8 SYNCED</div>
+            </div>
+            <div class="h-64 w-full mb-4">
+                <canvas id="ghgChart"></canvas>
+            </div>
+            <div class="grid grid-cols-3 gap-4 font-code text-xs text-gray-400">
+                <div>
+                    <div class="text-cyber-blue text-lg">0.87</div>
+                    <div>GHG INDEX</div>
+                </div>
+                <div>
+                    <div class="text-cyber-pink text-lg">+12%</div>
+                    <div>YoY GROWTH</div>
+                </div>
+                <div>
+                    <div class="text-white text-lg">98.2%</div>
+                    <div>CONFIDENCE</div>
+                </div>
+            </div>
+            <div class="absolute top-0 left-0 w-full h-1 bg-cyber-blue/50 shadow-[0_0_15px_#00f3ff] animate-[scan_3s_linear_infinite]"></div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. 技术区域 (恢复原先的详细图文版) -->
+<section id="tech" class="py-24 bg-void relative">
+    <div class="container mx-auto px-6">
+        <div class="text-center mb-20">
+            <span class="font-code text-cyber-blue text-sm border border-cyber-blue/30 px-3 py-1 rounded-full">TECHNOLOGY STACK</span>
+            <h2 class="font-head text-4xl md:text-5xl mt-6">三位一体 · 监测架构</h2>
+            <p class="font-body text-gray-400 mt-4 max-w-2xl mx-auto">从轨道层到比特层，我们将复杂的物理信号转化为可执行的减排指令。</p>
+        </div>
+
+        <!-- 步骤 1 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-24 tech-step group">
+            <div class="order-2 md:order-1 relative">
+                <div class="absolute -inset-4 bg-cyber-blue/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000&auto=format&fit=crop" alt="Satellite" class="relative z-10 border border-white/10 transition-all duration-500 tech-border">
+            </div>
+            <div class="order-1 md:order-2">
+                <h3 class="font-code text-6xl text-white/5 font-bold absolute -mt-16 -ml-4 select-none">01</h3>
+                <h3 class="font-head text-3xl text-cyber-blue mb-4">轨道数据捕获 (Acquisition)</h3>
+                <ul class="space-y-4 font-body text-gray-300 text-lg">
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-satellite mt-1 text-cyber-pink"></i>
+                        <div>
+                            <strong class="text-white">多源卫星星座：</strong> 整合 TROPOMI (7x7km 全球覆盖) 与 GHGSat (25m 点源识别) 数据流。
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-wave-square mt-1 text-cyber-pink"></i>
+                        <div>
+                            <strong class="text-white">短波红外光谱 (SWIR)：</strong> 锁定 CH4 / CO / N<sub>2</sub>O 关键吸收特征区间，穿透薄云干扰。
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 步骤 2 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-24 tech-step group">
+            <div class="order-1">
+                <h3 class="font-code text-6xl text-white/5 font-bold absolute -mt-16 -ml-4 select-none">02</h3>
+                <h3 class="font-head text-3xl text-cyber-purple mb-4">云谱智探AI智能体一体化处理</h3>
+                <div class="bg-gray-900/50 p-4 border-l-2 border-cyber-purple mb-4 font-code text-xs text-gray-400">
+                    > IMPORT TENSORFLOW<br>
+                    > LOADING U-NET MODEL...<br>
+                    > OPTIMIZING WEIGHTS...
+                </div>
+                <p class="text-gray-300 mb-4">
+                    从异常检测、风险分级、处置建议到闭环反馈，系统基于 <span class="text-white font-bold">GHG-Net</span> 与智能体协同机制，实现一体化联动处理。
+                </p>
+                <ul class="space-y-2 font-code text-sm text-cyber-purple">
+                    <li>[+] 自动剔除地表反照率干扰</li>
+                    <li>[+] 毫秒级羽流分割 (Semantic Segmentation)</li>
+                    <li>[+] 排放率量化误差 < 15%</li>
+                </ul>
+            </div>
+            <div class="order-2 relative">
+                <div class="absolute -inset-4 bg-cyber-purple/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <img src="IMG_20260330_224004.png" alt="云谱智探AI智能体一体化处理" class="relative z-10 border border-white/10 transition-all duration-500 tech-border">
+            </div>
+        </div>
+
+        <!-- 步骤 3 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center tech-step group">
+            <div class="order-2 md:order-1 relative">
+                <div class="absolute -inset-4 bg-cyber-pink/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1000&auto=format&fit=crop" alt="Dashboard" class="relative z-10 border border-white/10 transition-all duration-500 tech-border">
+            </div>
+            <div class="order-1 md:order-2">
+                <h3 class="font-code text-6xl text-white/5 font-bold absolute -mt-16 -ml-4 select-none">03</h3>
+                <h3 class="font-head text-3xl text-cyber-pink mb-4">决策情报交付 (Action)</h3>
+                <p class="text-gray-300 mb-6">
+                    不仅是发现问题，更是解决问题。系统自动生成合规级报告，并推送至企业 EHS 部门或政府监管机构。
+                </p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800 p-3 text-center border border-gray-700">
+                        <div class="font-head text-2xl text-white">2h</div>
+                        <div class="text-xs text-gray-500">从过境到警报</div>
+                    </div>
+                    <div class="bg-gray-800 p-3 text-center border border-gray-700">
+                        <div class="font-head text-2xl text-white">KG/HR</div>
+                        <div class="text-xs text-gray-500">量化单位</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 4. 全球档案 (重构：全息风格) -->
+<section id="cases" class="py-24 bg-black/50 relative">
+    <div class="container mx-auto px-6">
+        <div class="flex justify-between items-end mb-12 border-b border-gray-800 pb-4">
+            <div>
+                <h2 class="font-head text-4xl text-white">CASE ARCHIVES</h2>
+                <p class="font-code text-cyber-blue mt-2">DATABASE: GLOBAL_HOTSPOTS</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Archive 1 -->
+            <div class="archive-cube group hover:scale-[1.02] transition-transform duration-300">
+                <div class="h-48 relative bg-gray-900 overflow-hidden">
+                    <img
+                        src="1.png"
+                        alt="Permian Basin greenhouse-gas super-emitter plume"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    >
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                    <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#00f3ff 1px, transparent 1px); background-size: 18px 18px;"></div>
+                    <div class="absolute top-0 right-0 p-2">
+                        <span class="bg-red-600/80 text-white text-xs font-bold px-2 py-1 font-head">CRITICAL</span>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-cyber-blue/30 bg-black/40 backdrop-blur-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-head text-xl text-cyber-blue">Permian Basin</h4>
+                        <span class="font-code text-xs text-gray-500">#US-TX-01</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4 line-clamp-2">监测到二叠纪盆地超级点源泄漏。老旧井口密封失效导致高浓度温室气体羽流。</p>
+                    <div class="flex justify-between items-center text-xs font-code text-gray-500">
+                        <span>EMISSION: 4,200 kg/hr</span>
+                        <span class="text-cyber-blue cursor-pointer group-hover:underline">[ ACCESS DATA ]</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archive 2 -->
+            <div class="archive-cube group hover:scale-[1.02] transition-transform duration-300">
+                <div class="h-48 relative bg-gray-900 overflow-hidden">
+                    <img
+                        src="2.png"
+                        alt="Yamal Pipeline regular maintenance emission monitoring"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    >
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                    <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#ffd700 1px, transparent 1px); background-size: 18px 18px;"></div>
+                    <div class="absolute top-0 right-0 p-2">
+                        <span class="bg-yellow-500/80 text-black text-xs font-bold px-2 py-1 font-head">WARNING</span>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-yellow-500/30 bg-black/40 backdrop-blur-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-head text-xl text-yellow-500">Yamal Pipeline</h4>
+                        <span class="font-code text-xs text-gray-500">#RU-SIB-04</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4 line-clamp-2">长输管道压缩机站规律性维护排放。时序分析确认非事故性泄漏。</p>
+                    <div class="flex justify-between items-center text-xs font-code text-gray-500">
+                        <span>EMISSION: 850 kg/hr</span>
+                        <span class="text-yellow-500 cursor-pointer group-hover:underline">[ ACCESS DATA ]</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archive 3 -->
+            <div class="archive-cube group hover:scale-[1.02] transition-transform duration-300">
+                <div class="h-48 relative bg-gray-900 overflow-hidden">
+                    <img
+                        src="3.png"
+                        alt="Shanxi Mine greenhouse-gas reduction and sealing operations"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    >
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+                    <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#00ff9d 1px, transparent 1px); background-size: 18px 18px;"></div>
+                    <div class="absolute top-0 right-0 p-2">
+                        <span class="bg-green-500/80 text-black text-xs font-bold px-2 py-1 font-head">SOLVED</span>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-green-500/30 bg-black/40 backdrop-blur-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-head text-xl text-green-500">Shanxi Mine</h4>
+                        <span class="font-code text-xs text-gray-500">#CN-SX-09</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4 line-clamp-2">废弃矿井瓦斯逸散治理案例。定位3个隐蔽通风口并成功封堵。</p>
+                    <div class="flex justify-between items-center text-xs font-code text-gray-500">
+                        <span>REDUCTION: 1.2MT CO2e</span>
+                        <span class="text-green-500 cursor-pointer group-hover:underline">[ ACCESS DATA ]</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 5. 指挥团队 (全新排版) -->
+<section id="team" class="py-24 bg-void">
+    <div class="container mx-auto px-6">
+        <h2 class="font-head text-4xl text-center mb-16">
+            COMMAND CENTER
+            <span class="block font-code text-xs text-cyber-blue mt-2 tracking-[0.5em] opacity-70">PERSONNEL DIRECTORY</span>
+        </h2>
+
+        <div class="max-w-5xl mx-auto glass-panel overflow-hidden border border-cyber-blue/40">
+            <div class="grid grid-cols-1 lg:grid-cols-2">
+                <div class="relative min-h-[320px] lg:min-h-[420px]">
+                    <img
+                        src="团队照片.jpg"
+                        alt="云谱智探团队组 AI Team"
+                        class="w-full h-full object-cover"
+                    >
+                    <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/35 to-transparent"></div>
+                    <div class="absolute left-6 bottom-6">
+                        <span class="font-code text-xs text-cyber-blue border border-cyber-blue/50 px-3 py-1">ACTIVE UNIT</span>
+                    </div>
+                </div>
+
+                <div class="p-8 lg:p-10 flex flex-col justify-center">
+                    <p class="font-code text-xs tracking-[0.35em] text-cyber-blue mb-4">UNIFIED COMMAND GROUP</p>
+                    <h3 class="font-head text-3xl text-white mb-4">云谱智探团队组</h3>
+                    <p class="text-gray-300 leading-relaxed mb-6">
+                        统一负责温室气体遥感监测（CH4 / CO / N<sub>2</sub>O）、AI 识别建模、事件研判与平台联动处置，形成从数据到决策的闭环指挥能力。
+                    </p>
+                    <div class="grid grid-cols-2 gap-3 font-code text-xs">
+                        <div class="border border-cyber-blue/30 bg-cyber-blue/5 px-3 py-2 text-cyber-blue">REMOTE SENSING</div>
+                        <div class="border border-cyber-blue/30 bg-cyber-blue/5 px-3 py-2 text-cyber-blue">AI ANALYTICS</div>
+                        <div class="border border-cyber-blue/30 bg-cyber-blue/5 px-3 py-2 text-cyber-blue">RISK RESPONSE</div>
+                        <div class="border border-cyber-blue/30 bg-cyber-blue/5 px-3 py-2 text-cyber-blue">OPS COORDINATION</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-black border-t border-white/10 py-12 font-code text-xs text-gray-600 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#00f3ff 1px, transparent 1px); background-size: 30px 30px;"></div>
+    <div class="container mx-auto px-6 text-center relative z-10">
+        <h4 class="font-head text-2xl md:text-3xl text-white mb-4 tracking-[0.25em]">OMNIGAS AI</h4>
+        <p class="mb-2 text-gray-300 text-sm md:text-base">联系我们电话：REDACTED_PHONE</p>
+        <p class="mb-6 text-gray-300 text-sm md:text-base">
+            邮箱：
+            <a href="mailto:contact@example.com" class="text-cyber-blue hover:underline">
+                contact@example.com
+            </a>
+        </p>
+        <div class="flex flex-wrap justify-center gap-4 md:gap-6 text-cyber-blue mb-6">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span> SYSTEM ONLINE</span>
+            <span>·</span>
+            <span>SECURE CONNECTION</span>
+            <span>·</span>
+            <span>DATA ENCRYPTED</span>
+            <span>·</span>
+            <span id="footer-time">--:--:--</span>
+        </div>
+        <p class="mt-6 pt-6 border-t border-white/5 text-gray-300 text-sm md:text-base">
+            Copyright © 2026 OmniGas AI All Rights Reserved.
+        </p>
+        <p class="mt-2 text-cyber-blue text-sm md:text-base">
+            精准监测 · 守护蓝天 | 智能化温室气体监测系统
+        </p>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script>
+    // 1. 光标跟随
+    const cursorDot = document.getElementById('cursor-dot');
+    const cursorRing = document.getElementById('cursor-ring');
+    window.addEventListener('mousemove', (e) => {
+        gsap.to(cursorDot, { x: e.clientX, y: e.clientY, duration: 0.1 });
+        gsap.to(cursorRing, { x: e.clientX, y: e.clientY, duration: 0.3 });
+    });
+
+    // 2. 时钟逻辑 (强制 UTC+8)
+    function updateTime() {
+        const now = new Date();
+        // 计算 UTC+8 时间
+        const utc8Time = new Date(now.getTime() + (480 + now.getTimezoneOffset()) * 60000);
+
+        const timeString = utc8Time.toLocaleTimeString('en-GB', { hour12: false });
+        document.getElementById('clock').innerText = timeString + " UTC+8";
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // Footer live time
+    setInterval(() => {
+        const now = new Date();
+        const utc8 = new Date(now.getTime() + (480 + now.getTimezoneOffset()) * 60000);
+        const el = document.getElementById('footer-time');
+        if (el) el.innerText = utc8.toLocaleTimeString('en-GB', { hour12: false }) + ' UTC+8';
+    }, 1000);
+
+    // Scroll reveal observer
+    const revealEls = document.querySelectorAll('.tech-step, .archive-cube, .glass-panel, .fade-in-up');
+    const revealObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                e.target.classList.add('visible');
+                e.target.style.opacity = '1';
+                e.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    revealEls.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(30px)';
+        el.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+        revealObs.observe(el);
+    });
+
+    // 3. Three.js 背景 (更炫酷的星链地球特效)
+    const initThree = () => {
+        const container = document.getElementById('webgl-container');
+
+        // 场景初始化
+        const scene = new THREE.Scene();
+        // 添加环境雾效，制造深空感
+        scene.fog = new THREE.FogExp2(0x000000, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // --- 核心地球 (点阵) ---
+        const earthGeo = new THREE.SphereGeometry(5, 64, 64);
+        const earthMat = new THREE.PointsMaterial({
+            color: 0x00f3ff,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+        const earth = new THREE.Points(earthGeo, earthMat);
+        scene.add(earth);
+
+        // --- 外部轨道环 (动态线条) ---
+        const ringGeo = new THREE.TorusGeometry(7, 0.05, 16, 100);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.3 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.rotation.y = -0.3;
+        scene.add(ring);
+
+        // 第二个环
+        const ring2Geo = new THREE.TorusGeometry(8.5, 0.02, 16, 100);
+        const ring2Mat = new THREE.MeshBasicMaterial({ color: 0xff0055, transparent: true, opacity: 0.2 });
+        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        ring2.rotation.x = Math.PI / 1.8;
+        ring2.rotation.y = 0.2;
+        scene.add(ring2);
+
+        // --- 星空背景粒子 ---
+        const starsGeo = new THREE.BufferGeometry();
+        const starsCount = 2000;
+        const posArray = new Float32Array(starsCount * 3);
+
+        for(let i = 0; i < starsCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 80; // 扩大分布范围
+        }
+
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.03,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending
+        });
+        const stars = new THREE.Points(starsGeo, starsMat);
+        scene.add(stars);
+
+        camera.position.z = 14;
+
+        // 交互：鼠标轻微影响旋转
+        let mouseX = 0;
+        let mouseY = 0;
+        window.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+
+            // 地球自转
+            earth.rotation.y += 0.002;
+            earth.rotation.x += 0.0005;
+
+            // 轨道环旋转
+            ring.rotation.z -= 0.005;
+            ring2.rotation.z += 0.003;
+
+            // 星空缓慢流动
+            stars.rotation.y -= 0.0002;
+
+            // 鼠标交互视差
+            camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.05;
+            camera.position.y += (mouseY * 0.5 - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    };
+    initThree();
+
+    // 4. GSAP 动画
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.from(".glitch", { opacity: 0, y: 50, duration: 1.5, ease: "power4.out" });
+
+    gsap.from(".tech-step", {
+        scrollTrigger: { trigger: "#tech", start: "top 80%" },
+        y: 50, opacity: 0, stagger: 0.2, duration: 0.8
+    });
+
+    gsap.from(".archive-card", {
+        scrollTrigger: { trigger: "#cases", start: "top 80%" },
+        y: 50, opacity: 0, stagger: 0.2, duration: 0.8
+    });
+
+    // 5. Chart.js 图表 — 温室气体综合指数 (CH4 / CO / N2O)
+    const ctx = document.getElementById('ghgChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(0, 243, 255, 0.5)');
+    gradient.addColorStop(1, 'rgba(0, 243, 255, 0)');
+
+    const myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 20}, (_, i) => i),
+            datasets: [{
+                data: Array.from({length: 20}, () => null),
+                borderColor: '#00f3ff',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } } },
+            animation: { duration: 0 }
+        }
+    });
+
+    // 综合指数基线（默认值），接口可用时会按 CH4/CO 实测更新。
+    let ghgIndex = 0.87;
+
+    const fetchGasBaseline = async (gasType, fallbackValue) => {
+        try {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 30);
+            const res = await fetch('http://localhost:5000/sentinel/query_stations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stations: [{ name: '大港油田', lat: 38.5348, lon: 117.6791 }],
+                    time_start: startDate.toISOString().split('T')[0],
+                    time_end: endDate.toISOString().split('T')[0],
+                    gas_type: gasType
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.stations) {
+                const station = data.stations.find(st => st.mean_concentration != null);
+                if (station) return Number(station.mean_concentration) || fallbackValue;
+            }
+        } catch (e) {
+            console.warn(`${gasType} API 未连接，使用默认基线`, e);
+        }
+        return fallbackValue;
+    };
+
+    (async function loadGreenhouseIndex() {
+        const [ch4, co] = await Promise.all([
+            fetchGasBaseline('CH4', 1900),  // ppb
+            fetchGasBaseline('CO', 140),    // ppb
+        ]);
+        const n2o = 335; // ppb (页面展示口径，离线兜底常量)
+
+        const normCH4 = ch4 / 1900;
+        const normCO = co / 140;
+        const normN2O = n2o / 335;
+        ghgIndex = Math.max(0.3, Math.min(1.8, normCH4 * 0.5 + normCO * 0.3 + normN2O * 0.2));
+
+        const initData = Array.from({length: 20}, () => ghgIndex * 100 + (Math.random() - 0.5) * 3.5);
+        myChart.data.datasets[0].data = initData;
+        myChart.update();
+    })();
+
+    setInterval(() => {
+        const newData = ghgIndex * 100 + (Math.random() - 0.5) * 3.5;
+        myChart.data.datasets[0].data.shift();
+        myChart.data.datasets[0].data.push(newData);
+        myChart.update();
+    }, 1000);
+</script>
+</body>
+</html>
+
+
+
+

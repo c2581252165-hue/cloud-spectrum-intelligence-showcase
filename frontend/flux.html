@@ -1,0 +1,998 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>多气体排放率测算 | 跨截面通量法</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-core: #041129;
+            --bg-glass: rgba(10, 30, 60, 0.74);
+            --neon-cyan: #73eeff;
+            --neon-blue: #6ba9ff;
+            --neon-orange: #ff9d00;
+            --neon-red: #ff0055;
+            --neon-purple: #bc13fe;
+            --neon-green: #00ff88;
+            --font-title: 'Orbitron', sans-serif;
+            --font-data: 'Rajdhani', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-core);
+            background-image:
+                radial-gradient(circle at 12% -8%, rgba(131, 190, 255, 0.38) 0%, transparent 43%),
+                radial-gradient(circle at 88% -10%, rgba(80, 153, 255, 0.32) 0%, transparent 42%),
+                linear-gradient(180deg, #0a2343 0%, #061a33 34%, #041226 100%),
+                linear-gradient(0deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px),
+                linear-gradient(90deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            color: #fff;
+            font-family: var(--font-data);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 15px;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(180deg, rgba(0,243,255,0) 0%, rgba(0,243,255,0.03) 50%, rgba(0,243,255,0) 100%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 0;
+            animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px #00ff88; }
+            50% { opacity: 0.4; box-shadow: 0 0 2px #00ff88; }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            text-align: center;
+            padding: 20px 0 10px;
+            margin-bottom: 10px;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 80%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+        .main-title {
+            font-family: var(--font-title);
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #fff 0%, var(--neon-cyan) 40%, #0066ff 100%);
+            background-size: 100% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(0,243,255,0.5));
+            animation: title-shimmer 4s ease-in-out infinite;
+        }
+        @keyframes title-shimmer {
+            0%, 100% { background-position: 0% 0%; filter: drop-shadow(0 0 20px rgba(0,243,255,0.5)); }
+            50% { background-position: 0% 100%; filter: drop-shadow(0 0 40px rgba(0,243,255,0.8)); }
+        }
+        .sub-title {
+            font-family: var(--font-data);
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 6px;
+            margin-top: 5px;
+        }
+
+        /* 玻璃面板 */
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(0,243,255,0.15);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .glass-panel:hover {
+            border-color: rgba(0,243,255,0.35);
+            box-shadow: 0 0 30px rgba(0,243,255,0.08);
+        }
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scan-bar 3s ease-in-out infinite;
+        }
+        @keyframes scan-bar {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        /* HUD科技角标 */
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; right: -1px;
+            width: 16px; height: 16px;
+            border-bottom: 2px solid rgba(0,243,255,0.4);
+            border-right: 2px solid rgba(0,243,255,0.4);
+            pointer-events: none;
+        }
+
+        .panel-title {
+            font-family: var(--font-title);
+            font-size: 1rem;
+            color: var(--neon-cyan);
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .panel-title i {
+            font-size: 1.2rem;
+        }
+
+        /* 布局 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+        .main-grid > div {
+            display: flex;
+            flex-direction: column;
+        }
+        .main-grid > div > .glass-panel:last-child {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-grid > div > .glass-panel:last-child .sandbox-wrapper,
+        .main-grid > div > .glass-panel:last-child .chart-container {
+            flex: 1;
+        }
+
+        /* 控制面板 */
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,243,255,0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-family: var(--font-data);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .control-group select:focus,
+        .control-group input:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0,243,255,0.2);
+        }
+        .control-group select option {
+            background: #0a1428;
+        }
+
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* 按钮 */
+        .btn-calculate {
+            width: 100%;
+            padding: 12px;
+            font-family: var(--font-title);
+            font-size: 1rem;
+            letter-spacing: 2px;
+            color: #fff;
+            background: linear-gradient(135deg, rgba(0,243,255,0.2), rgba(0,102,255,0.3));
+            border: 1px solid var(--neon-cyan);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-calculate::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.08) 50%, transparent 60%);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .btn-calculate:hover::after {
+            transform: translateX(100%);
+        }
+        .btn-calculate:hover {
+            background: linear-gradient(135deg, rgba(0,243,255,0.4), rgba(0,102,255,0.5));
+            box-shadow: 0 0 30px rgba(0,243,255,0.4), 0 0 60px rgba(0,243,255,0.1);
+            transform: translateY(-2px);
+            text-shadow: 0 0 10px rgba(0,243,255,0.5);
+        }
+        .btn-calculate:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-sync-wind {
+            width: 100%;
+            padding: 10px 12px;
+            margin-top: 6px;
+            border: 1px solid rgba(115, 238, 255, 0.45);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(115, 238, 255, 0.14), rgba(107, 169, 255, 0.2));
+            color: #d8f6ff;
+            font-family: var(--font-data);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .btn-sync-wind:hover {
+            box-shadow: 0 0 16px rgba(115, 238, 255, 0.25);
+            transform: translateY(-1px);
+        }
+        .btn-sync-wind:disabled {
+            opacity: 0.65;
+            cursor: wait;
+            transform: none;
+        }
+        .wind-status {
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.65);
+        }
+        .wind-status.ok { color: #7effca; }
+        .wind-status.error { color: #ff8ba9; }
+
+        /* 结果卡片 */
+        .result-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .result-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,243,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(.4,0,.2,1);
+            position: relative;
+            overflow: hidden;
+        }
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,243,255,0.05), transparent);
+            transition: left 0.6s;
+        }
+        .result-card:hover::before {
+            left: 100%;
+        }
+        .result-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0,243,255,0.15), 0 0 60px rgba(0,243,255,0.05);
+            transform: translateY(-3px);
+        }
+        .result-card .card-label {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .result-card .card-value {
+            font-family: var(--font-title);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0,243,255,0.5);
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        .result-card .card-unit {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+        }
+        .result-card.highlight {
+            border-color: var(--neon-orange);
+        }
+        .result-card.highlight .card-value {
+            color: var(--neon-orange);
+            text-shadow: 0 0 10px rgba(255,157,0,0.5);
+        }
+
+        /* 图表 */
+        .chart-container {
+            width: 100%;
+            height: 350px;
+            margin-top: 10px;
+        }
+
+        /* 沙盘Canvas */
+        .sandbox-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        #sandboxCanvas {
+            border: 1px solid rgba(0,243,255,0.2);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            width: 100%;
+            flex: 1;
+            min-height: 280px;
+        }
+        .sandbox-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .sandbox-controls label {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+        }
+        .sandbox-controls input[type="range"] {
+            width: 150px;
+            accent-color: var(--neon-cyan);
+        }
+
+        /* 公式展示 */
+        .formula-box {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,243,255,0.1);
+            border-radius: 8px;
+            padding: 15px 20px;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 1.1rem;
+            color: var(--neon-cyan);
+            letter-spacing: 1px;
+        }
+        .formula-box .formula-main {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.4rem;
+            margin: 8px 0;
+        }
+        .formula-box .formula-desc {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* 状态提示 */
+        .status-msg {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255,255,255,0.4);
+            font-size: 1rem;
+        }
+        .status-msg.loading {
+            color: var(--neon-cyan);
+        }
+        .status-msg.error {
+            color: var(--neon-red);
+        }
+
+        /* 底部行 */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .result-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .result-cards { grid-template-columns: 1fr; }
+            .bottom-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;">
+            <span style="display:inline-block;width:8px;height:8px;background:#00ff88;border-radius:50%;box-shadow:0 0 8px #00ff88;animation:pulse-dot 2s infinite;"></span>
+            <span style="font-family:var(--font-data);font-size:0.85rem;color:rgba(255,255,255,0.4);letter-spacing:3px;">SYSTEM ONLINE</span>
+        </div>
+        <div class="main-title">多气体排放率测算中心</div>
+        <div class="sub-title">MULTI-GAS CROSS-SECTIONAL FLUX METHOD</div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="main-grid">
+        <!-- 左侧控制面板 -->
+        <div>
+            <div class="glass-panel">
+                <div class="panel-title"><i class="fas fa-sliders-h"></i> 参数配置</div>
+
+                <div class="control-group">
+                    <label>气体类型</label>
+                    <select id="gasType">
+                        <option value="CH4">CH₄ 甲烷</option>
+                        <option value="CO">CO 一氧化碳</option>
+                        <option value="NO2">NO₂ 二氧化氮</option>
+                    </select>
+                </div>
+
+                <div class="row-2">
+                    <div class="control-group">
+                        <label>排放源纬度</label>
+                        <input type="number" id="sourceLat" value="38.35" step="0.01" placeholder="纬度">
+                    </div>
+                    <div class="control-group">
+                        <label>排放源经度</label>
+                        <input type="number" id="sourceLon" value="117.55" step="0.01" placeholder="经度">
+                    </div>
+                </div>
+
+                <div class="row-2">
+                    <div class="control-group">
+                        <label>开始日期</label>
+                        <input type="date" id="startDate" value="2025-10-19">
+                    </div>
+                    <div class="control-group">
+                        <label>结束日期</label>
+                        <input type="date" id="endDate" value="2025-10-26">
+                    </div>
+                </div>
+
+                <div class="row-2">
+                    <div class="control-group">
+                        <label>风速 (m/s)</label>
+                        <input type="number" id="windSpeed" value="5.0" step="0.5" min="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>风向 (°, 气象来向)</label>
+                        <input type="number" id="windDir" value="315" step="5" min="0" max="360">
+                        <div class="wind-status" style="margin-top:4px;">提示：0°=北风(从北向南吹)，180°=南风</div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <button class="btn-sync-wind" id="btnFetchWindNow" type="button" onclick="fetchTodayRealWind()">
+                        <i class="fas fa-satellite-dish"></i> 引入所选时段真实风向/风速
+                    </button>
+                    <div id="windFetchStatus" class="wind-status">当前使用：手动风场参数（建议先引入所选时段风场）</div>
+                </div>
+
+                <div class="row-2">
+                    <div class="control-group">
+                        <label>下风距离 (px)</label>
+                        <input type="number" id="downwindDist" value="3" step="1" min="1">
+                    </div>
+                    <div class="control-group">
+                        <label>截面长度 (px)</label>
+                        <input type="number" id="lineLength" value="10" step="1" min="3">
+                    </div>
+                </div>
+
+                <button class="btn-calculate" id="btnCalculate" onclick="calculateFlux()">
+                    <i class="fas fa-calculator"></i> 计算排放率
+                </button>
+            </div>
+
+            <!-- 公式说明 -->
+            <div class="glass-panel" style="margin-top: 20px; flex-shrink: 0;">
+                <div class="panel-title"><i class="fas fa-square-root-alt"></i> 物理公式</div>
+                <div class="formula-box">
+                    <div class="formula-desc">跨截面通量法 (Cross-Sectional Flux)</div>
+                    <div class="formula-main">Q = ∫ (Ω − Ω<sub>bg</sub>) · u · cos(θ) dx</div>
+                    <div class="formula-desc">
+                        Q: 排放率 | Ω: 浓度 | Ω<sub>bg</sub>: 背景浓度<br>
+                        u: 风速 | θ: 截面法向与风向夹角
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧结果区 -->
+        <div>
+            <!-- 结果卡片 -->
+            <div class="result-cards">
+                <div class="result-card highlight">
+                    <div class="card-label">排放率</div>
+                    <div class="card-value" id="valFluxHr">--</div>
+                    <div class="card-unit">kg / hr</div>
+                </div>
+                <div class="result-card">
+                    <div class="card-label">排放率</div>
+                    <div class="card-value" id="valFluxS">--</div>
+                    <div class="card-unit">kg / s</div>
+                </div>
+                <div class="result-card">
+                    <div class="card-label">背景浓度</div>
+                    <div class="card-value" id="valBg">--</div>
+                    <div class="card-unit" id="valBgUnit">ppb</div>
+                </div>
+                <div class="result-card">
+                    <div class="card-label">最优下风距离</div>
+                    <div class="card-value" id="valDist">--</div>
+                    <div class="card-unit" id="valProfileType">--</div>
+                </div>
+            </div>
+
+            <!-- 截面浓度曲线图 -->
+            <div class="glass-panel">
+                <div class="panel-title"><i class="fas fa-chart-area"></i> 截面浓度剖面</div>
+                <div id="profileChart" class="chart-container">
+                    <div class="status-msg" id="chartStatus">输入参数后点击"计算排放率"查看结果</div>
+                </div>
+            </div>
+
+            <!-- 通量沙盘演示 -->
+            <div class="glass-panel" style="margin-top:20px; flex:1; display:flex; flex-direction:column;">
+                <div class="panel-title"><i class="fas fa-wind"></i> 通量沙盘演示</div>
+                <div class="sandbox-wrapper">
+                    <canvas id="sandboxCanvas"></canvas>
+                    <div class="sandbox-controls">
+                        <label>风向: <span id="sbWindLabel">315°</span>
+                            <input type="range" id="sbWindDir" min="0" max="360" value="315">
+                        </label>
+                        <label>截面角: <span id="sbLineLabel">0°</span>
+                            <input type="range" id="sbLineAngle" min="-90" max="90" value="0">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:5000/sentinel';
+const windSpeedInput = document.getElementById('windSpeed');
+const windDirInput = document.getElementById('windDir');
+const windFetchStatus = document.getElementById('windFetchStatus');
+
+function formatLocalDate(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function addDays(dateStr, days) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return formatLocalDate(d);
+}
+
+function normalizeWindDeg(deg) {
+    const n = Number(deg);
+    if (!Number.isFinite(n)) return 0;
+    return ((n % 360) + 360) % 360;
+}
+
+function setWindStatus(text, type = '') {
+    if (!windFetchStatus) return;
+    windFetchStatus.textContent = text;
+    windFetchStatus.className = `wind-status ${type}`.trim();
+}
+
+async function fetchTodayRealWind() {
+    const btn = document.getElementById('btnFetchWindNow');
+    const lat = parseFloat(document.getElementById('sourceLat').value);
+    const lon = parseFloat(document.getElementById('sourceLon').value);
+    const startInput = document.getElementById('startDate').value;
+    const endInput = document.getElementById('endDate').value;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        setWindStatus('经纬度无效，无法获取风场', 'error');
+        return;
+    }
+
+    const today = formatLocalDate(new Date());
+    const startDate = startInput || today;
+    const endDate = endInput || startDate;
+    const endExclusive = addDays(endDate, 1);
+    const useRealtime = startDate === today && endDate === today;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在获取...';
+    setWindStatus(`正在获取 ${startDate} ~ ${endDate} 风场...`);
+
+    try {
+        // 1) 所选日期是今天时，优先尝试实时气象（Open-Meteo）
+        if (useRealtime) {
+            const meteoUrl =
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+                `&current=wind_speed_10m,wind_direction_10m&timezone=auto`;
+            const meteoResp = await fetch(meteoUrl);
+            if (meteoResp.ok) {
+                const meteoData = await meteoResp.json();
+                const cw = meteoData && meteoData.current ? meteoData.current : null;
+                if (cw && cw.wind_speed_10m != null && cw.wind_direction_10m != null) {
+                    const ws = Number(cw.wind_speed_10m);
+                    const wd = Math.round(normalizeWindDeg(cw.wind_direction_10m));
+                    windSpeedInput.value = ws.toFixed(2);
+                    windDirInput.value = wd;
+                    if (typeof sbWindDirInput !== 'undefined' && sbWindDirInput) {
+                        sbWindDirInput.value = wd;
+                    }
+                    drawSandbox();
+                    setWindStatus(`已接入今日实况：${ws.toFixed(2)} m/s，${wd}°（0°=北风）`, 'ok');
+                    return;
+                }
+            }
+        }
+
+        // 2) 使用后端 ERA5（按当前所选日期范围）
+        const resp = await fetch(`${API_BASE}/query_wind`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                stations: [{ name: 'source', lat: lat, lon: lon }],
+                time_start: startDate,
+                time_end: endExclusive
+            })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success || !data.stations || !data.stations.length) {
+            throw new Error(data.error || `HTTP ${resp.status}`);
+        }
+
+        const s = data.stations[0];
+        if (s.wind_speed == null || s.wind_dir_deg == null) {
+            throw new Error(s.error || '当天风场无有效数据');
+        }
+
+        const ws = Number(s.wind_speed);
+        const wd = Math.round(normalizeWindDeg(s.wind_dir_deg));
+        windSpeedInput.value = ws.toFixed(2);
+        windDirInput.value = wd;
+
+        if (typeof sbWindDirInput !== 'undefined' && sbWindDirInput) {
+            sbWindDirInput.value = wd;
+        }
+        drawSandbox();
+        setWindStatus(`已接入ERA5风场(${startDate}~${endDate})：${ws.toFixed(2)} m/s，${wd}°（0°=北风）`, 'ok');
+    } catch (err) {
+        setWindStatus(`获取失败：${err.message}（已保留手动参数）`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-satellite-dish"></i> 引入所选时段真实风向/风速';
+    }
+}
+
+// ============ 调用后端计算 ============
+async function calculateFlux() {
+    const btn = document.getElementById('btnCalculate');
+    const chartStatus = document.getElementById('chartStatus');
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (startDate && endDate && startDate > endDate) {
+        chartStatus.className = 'status-msg error';
+        chartStatus.textContent = '开始日期不能晚于结束日期';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 计算中...';
+    chartStatus.className = 'status-msg loading';
+    chartStatus.textContent = '正在从 Sentinel-5P 获取数据并计算...';
+    setWindStatus('排放率计算中，请稍候...');
+
+    const payload = {
+        gas_type: document.getElementById('gasType').value,
+        source_lat: parseFloat(document.getElementById('sourceLat').value),
+        source_lon: parseFloat(document.getElementById('sourceLon').value),
+        start_date: startDate,
+        end_date: endDate,
+        wind_speed: parseFloat(document.getElementById('windSpeed').value),
+        wind_dir_deg: parseFloat(document.getElementById('windDir').value),
+        downwind_dist_px: parseFloat(document.getElementById('downwindDist').value),
+        line_length_px: parseFloat(document.getElementById('lineLength').value)
+    };
+
+    const reqStartedAt = Date.now();
+    const controller = new AbortController();
+    const timeoutMs = 90 * 1000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const waitTicker = setInterval(() => {
+        const sec = Math.floor((Date.now() - reqStartedAt) / 1000);
+        chartStatus.textContent = `正在从 Sentinel-5P 获取数据并计算...（已等待 ${sec}s）`;
+    }, 3000);
+
+    try {
+        const resp = await fetch(`${API_BASE}/calculate_flux`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        const data = await resp.json();
+
+        if (!data.success) {
+            chartStatus.className = 'status-msg error';
+            chartStatus.textContent = '计算失败: ' + data.error;
+            setWindStatus('排放率计算失败：' + data.error, 'error');
+            return;
+        }
+
+        // 更新结果卡片
+        document.getElementById('valFluxHr').textContent = data.emission_rate_kg_hr.toFixed(4);
+        document.getElementById('valFluxS').textContent = data.emission_rate_kg_s.toExponential(3);
+        document.getElementById('valBg').textContent = data.background_val.toExponential(3);
+
+        // 背景浓度单位根据气体类型
+        const gasType = document.getElementById('gasType').value;
+        const bgUnits = { CH4: 'ppb', NO2: 'mol/m²', CO: 'mol/m²' };
+        document.getElementById('valBgUnit').textContent = bgUnits[gasType] || 'ppb';
+
+        // 显示最优下风距离和剖面诊断
+        const distPx = data.best_downwind_dist_px || '--';
+        const distKm = data.best_downwind_dist_px ? (data.best_downwind_dist_px * 5.5).toFixed(1) + ' km' : '--';
+        document.getElementById('valDist').textContent = typeof distPx === 'number' ? distPx.toFixed(1) + ' px' : distPx;
+        const profileLabel = data.profile_type === 'bell' ? '✅ 钟形曲线' : '⚠️ 梯度型(无明显烟羽)';
+        document.getElementById('valProfileType').textContent = profileLabel;
+
+        const mode = data.cached ? '缓存命中' : '实时计算';
+        const elapsed = data.elapsed_ms != null ? `后端 ${data.elapsed_ms} ms` : '';
+        setWindStatus(`排放率计算完成：${mode}${elapsed ? `，${elapsed}` : ''}`, 'ok');
+
+        // 绘制图表
+        chartStatus.textContent = '';
+        renderProfileChart(data.cross_section_profile, data.background_val);
+
+    } catch (err) {
+        chartStatus.className = 'status-msg error';
+        if (err.name === 'AbortError') {
+            chartStatus.textContent = '请求超时（超过90秒）。建议缩短日期范围后重试。';
+            setWindStatus('排放率计算超时：请缩短日期范围或稍后重试', 'error');
+        } else {
+            chartStatus.textContent = '请求失败: ' + err.message;
+            setWindStatus('排放率请求失败：' + err.message, 'error');
+        }
+    } finally {
+        clearTimeout(timeoutId);
+        clearInterval(waitTicker);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-calculator"></i> 计算排放率';
+    }
+}
+
+// ============ ECharts: 截面浓度剖面 ============
+function renderProfileChart(profile, bgVal) {
+    const dom = document.getElementById('profileChart');
+    dom.innerHTML = '';
+    const chart = echarts.init(dom);
+    const xData = profile.map((_, i) => i);
+    const bgLine = profile.map(() => bgVal);
+
+    chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['浓度', '背景'], textStyle: { color: '#aaa' }, top: 5 },
+        grid: { left: 60, right: 20, top: 40, bottom: 30 },
+        xAxis: {
+            type: 'category', data: xData,
+            name: '采样点',
+            axisLine: { lineStyle: { color: '#334' } },
+            axisLabel: { color: '#888' }
+        },
+        yAxis: {
+            type: 'value',
+            name: '浓度',
+            axisLine: { lineStyle: { color: '#334' } },
+            axisLabel: { color: '#888', formatter: v => v.toExponential(1) },
+            splitLine: { lineStyle: { color: 'rgba(0,243,255,0.05)' } }
+        },
+        series: [
+            {
+                name: '浓度', type: 'line', data: profile, smooth: true,
+                lineStyle: { color: '#00f3ff', width: 2 },
+                areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    { offset: 0, color: 'rgba(0,243,255,0.3)' },
+                    { offset: 1, color: 'rgba(0,243,255,0)' }
+                ])},
+                itemStyle: { color: '#00f3ff' }
+            },
+            {
+                name: '背景', type: 'line', data: bgLine,
+                lineStyle: { color: '#ff9d00', width: 1, type: 'dashed' },
+                itemStyle: { color: '#ff9d00' }, symbol: 'none'
+            }
+        ]
+    });
+    window.addEventListener('resize', () => chart.resize());
+}
+
+// ============ 2D 沙盘 ============
+const sbCanvas = document.getElementById('sandboxCanvas');
+const sbCtx = sbCanvas.getContext('2d');
+const sbWindDirInput = document.getElementById('sbWindDir');
+const sbLineAngleInput = document.getElementById('sbLineAngle');
+
+// 高DPI适配：让canvas物理分辨率匹配显示尺寸
+function setupCanvasHiDPI() {
+    const rect = sbCanvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    sbCanvas.width = rect.width * dpr;
+    sbCanvas.height = rect.height * dpr;
+    sbCtx.scale(dpr, dpr);
+}
+setupCanvasHiDPI();
+window.addEventListener('resize', () => { setupCanvasHiDPI(); drawSandbox(); });
+
+function drawSandbox() {
+    const rect = sbCanvas.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    const cx = W / 2, cy = H / 2;
+    sbCtx.clearRect(0, 0, W, H);
+
+    // 背景网格
+    sbCtx.strokeStyle = 'rgba(0,243,255,0.08)';
+    sbCtx.lineWidth = 0.5;
+    const gridSize = 30;
+    for (let i = 0; i < W; i += gridSize) { sbCtx.beginPath(); sbCtx.moveTo(i,0); sbCtx.lineTo(i,H); sbCtx.stroke(); }
+    for (let j = 0; j < H; j += gridSize) { sbCtx.beginPath(); sbCtx.moveTo(0,j); sbCtx.lineTo(W,j); sbCtx.stroke(); }
+
+    const windDeg = parseInt(sbWindDirInput.value);
+    const lineOff = parseInt(sbLineAngleInput.value);
+    document.getElementById('sbWindLabel').textContent = windDeg + '°';
+    document.getElementById('sbLineLabel').textContent = lineOff + '°';
+
+    // 气象风向 → 数学角度(风吹去方向)
+    const mathRad = ((270 - windDeg) % 360) * Math.PI / 180;
+    const wdx = Math.cos(mathRad), wdy = -Math.sin(mathRad); // canvas y轴向下
+
+    // 绘制羽流 (沿风吹去方向的高斯扩散)
+    const plumeLen = 140;
+    for (let d = 12; d < plumeLen; d += 3) {
+        const sigma = 10 + d * 0.3;
+        for (let s = -sigma * 2; s <= sigma * 2; s += 4) {
+            const perpRad = mathRad + Math.PI / 2;
+            const px = cx + wdx * d + Math.cos(perpRad) * s;
+            const py = cy + wdy * d - Math.sin(perpRad) * s;
+            const gauss = Math.exp(-0.5 * (s / sigma) ** 2);
+            const alpha = gauss * 0.4 * (1 - d / plumeLen);
+            sbCtx.fillStyle = `rgba(255,157,0,${alpha})`;
+            sbCtx.fillRect(px - 2, py - 2, 4, 4);
+        }
+    }
+
+    // 排放源点
+    sbCtx.beginPath();
+    sbCtx.arc(cx, cy, 8, 0, Math.PI * 2);
+    sbCtx.fillStyle = '#ff0055';
+    sbCtx.fill();
+    sbCtx.strokeStyle = '#ff3377';
+    sbCtx.lineWidth = 2;
+    sbCtx.stroke();
+    sbCtx.fillStyle = '#fff';
+    sbCtx.font = 'bold 14px Rajdhani';
+    sbCtx.fillText('Source', cx + 12, cy - 12);
+
+    // 风向箭头
+    const arrowLen = 70;
+    const ax = cx + wdx * arrowLen, ay = cy + wdy * arrowLen;
+    sbCtx.beginPath();
+    sbCtx.moveTo(cx, cy);
+    sbCtx.lineTo(ax, ay);
+    sbCtx.strokeStyle = '#00f3ff';
+    sbCtx.lineWidth = 2.5;
+    sbCtx.stroke();
+    // 箭头头
+    const headLen = 12, headAng = 0.5;
+    sbCtx.beginPath();
+    sbCtx.moveTo(ax, ay);
+    sbCtx.lineTo(ax - headLen * Math.cos(mathRad - headAng), ay + headLen * Math.sin(mathRad - headAng));
+    sbCtx.moveTo(ax, ay);
+    sbCtx.lineTo(ax - headLen * Math.cos(mathRad + headAng), ay + headLen * Math.sin(mathRad + headAng));
+    sbCtx.lineWidth = 2.5;
+    sbCtx.stroke();
+    sbCtx.fillStyle = '#00f3ff';
+    sbCtx.font = 'bold 14px Rajdhani';
+    sbCtx.fillText('Wind', ax + 8, ay - 8);
+
+    // 截面线 (垂直于风向 + offset角度)
+    const lineRad = mathRad + Math.PI / 2 + lineOff * Math.PI / 180;
+    const downDist = 55; // 下风向距离
+    const lineCx = cx + wdx * downDist, lineCy = cy + wdy * downDist;
+    const halfL = 80;
+    const lx1 = lineCx + Math.cos(lineRad) * halfL, ly1 = lineCy - Math.sin(lineRad) * halfL;
+    const lx2 = lineCx - Math.cos(lineRad) * halfL, ly2 = lineCy + Math.sin(lineRad) * halfL;
+    sbCtx.beginPath();
+    sbCtx.moveTo(lx1, ly1);
+    sbCtx.lineTo(lx2, ly2);
+    sbCtx.strokeStyle = '#00ff88';
+    sbCtx.lineWidth = 2.5;
+    sbCtx.setLineDash([6, 4]);
+    sbCtx.stroke();
+    sbCtx.setLineDash([]);
+    sbCtx.fillStyle = '#00ff88';
+    sbCtx.font = 'bold 14px Rajdhani';
+    sbCtx.fillText('Cross-Section', lx1 + 8, ly1 - 8);
+
+    // 显示 theta
+    const theta = Math.abs(lineOff);
+    const cosTheta = Math.cos(theta * Math.PI / 180);
+    sbCtx.fillStyle = 'rgba(255,255,255,0.8)';
+    sbCtx.font = 'bold 14px Rajdhani';
+    sbCtx.fillText(`θ = ${theta}°  cos(θ) = ${cosTheta.toFixed(3)}`, 12, H - 12);
+}
+
+sbLineAngleInput.addEventListener('input', drawSandbox);
+windDirInput.addEventListener('input', () => {
+    const deg = Math.round(normalizeWindDeg(windDirInput.value));
+    windDirInput.value = deg;
+    sbWindDirInput.value = deg;
+    setWindStatus('当前使用：手动风场参数');
+    drawSandbox();
+});
+windSpeedInput.addEventListener('input', () => {
+    setWindStatus('当前使用：手动风场参数');
+});
+sbWindDirInput.addEventListener('input', () => {
+    windDirInput.value = sbWindDirInput.value;
+    setWindStatus('当前使用：手动风场参数');
+    drawSandbox();
+});
+sbWindDirInput.value = Math.round(normalizeWindDeg(windDirInput.value));
+drawSandbox();
+</script>
+</body>
+</html>
+
+

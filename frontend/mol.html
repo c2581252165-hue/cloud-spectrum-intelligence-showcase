@@ -1,0 +1,1537 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多气体排放智能预测系统 | Sentinel-AI</title>
+    <!-- 引入科幻风格字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- 核心变量定义 --- */
+        :root {
+            --neon-cyan: #73eeff;
+            --neon-blue: #6ba9ff;
+            --neon-purple: #bc13fe;
+            --neon-red: #ff0055;
+            --neon-green: #00ff9d;
+            --neon-gold: #ffd700;
+
+            --bg-dark: #041129;
+            --bg-panel: rgba(10, 30, 60, 0.74);
+            --border-glow: rgba(0, 243, 255, 0.3);
+
+            --font-title: 'Orbitron', sans-serif;
+            --font-data: 'Rajdhani', sans-serif;
+            --font-body: 'Noto Sans SC', sans-serif;
+        }
+
+        /* --- 全局重置 --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image:
+                    radial-gradient(circle at 12% -8%, rgba(131, 190, 255, 0.38) 0%, transparent 43%),
+                    radial-gradient(circle at 88% -10%, rgba(80, 153, 255, 0.32) 0%, transparent 42%),
+                    linear-gradient(180deg, #0a2343 0%, #061a33 34%, #041226 100%),
+                    linear-gradient(0deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px),
+                    linear-gradient(90deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+            color: #fff;
+            font-family: var(--font-body);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 动态背景光晕 */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: radial-gradient(circle at center, rgba(115, 238, 255, 0.2) 0%, transparent 60%);
+            z-index: -1;
+            animation: pulse-bg 10s infinite alternate;
+        }
+
+        /* --- 滚动条美化 --- */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* --- 布局容器 --- */
+        .main-wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- 头部设计 --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100px;
+            height: 2px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .brand-box h1 {
+            font-family: var(--font-title);
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #fff, var(--neon-cyan));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-subtitle {
+            font-family: var(--font-data);
+            color: var(--neon-blue);
+            font-size: 1rem;
+            letter-spacing: 4px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        /* --- 状态胶囊 --- */
+        .system-status-bar {
+            display: flex;
+            gap: 15px;
+        }
+
+        .status-pill {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: var(--font-data);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        /* --- 网格布局 --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            min-height: 600px;
+        }
+
+        /* --- 通用面板样式 (Cyber Panel) --- */
+        .cyber-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-glow);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            position: relative;
+            /* 切角效果 */
+            clip-path: polygon(
+                    20px 0, 100% 0,
+                    100% calc(100% - 20px), calc(100% - 20px) 100%,
+                    0 100%, 0 20px
+            );
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+            /* 关键修复：避免面板本身的层叠问题 */
+            z-index: 1;
+        }
+
+        /* 面板角落装饰 */
+        .cyber-panel::before, .cyber-panel::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            transition: all 0.3s;
+            /* 核心修复：防止装饰层遮挡点击事件，这解决了输入框和滑块无法点击的问题 */
+            pointer-events: none;
+            z-index: 2;
+        }
+        .cyber-panel::before {
+            top: 0; left: 0;
+            border-top: 2px solid var(--neon-cyan);
+            border-left: 2px solid var(--neon-cyan);
+        }
+        .cyber-panel::after {
+            bottom: 0; right: 0;
+            border-bottom: 2px solid var(--neon-cyan);
+            border-right: 2px solid var(--neon-cyan);
+        }
+        .cyber-panel:hover::before, .cyber-panel:hover::after {
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+        }
+
+        .panel-title {
+            font-family: var(--font-title);
+            color: var(--neon-cyan);
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+            padding-bottom: 10px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* --- 左侧列表区域 --- */
+        .location-list-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            z-index: 10;
+        }
+
+        .location-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .location-item {
+            background: rgba(255,255,255,0.03);
+            border-left: 3px solid transparent;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .location-item:hover {
+            background: rgba(0, 243, 255, 0.1);
+            border-left-color: var(--neon-cyan);
+            transform: translateX(5px);
+        }
+
+        .location-name {
+            font-family: var(--font-data);
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .location-city {
+            font-size: 0.8rem;
+            color: var(--neon-blue);
+            background: rgba(0, 102, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 2px;
+        }
+
+        .location-coords {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 5px;
+        }
+
+        /* --- 右侧控制与展示区 --- */
+        .control-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4列适配新增气体选择器 */
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: end;
+            position: relative;
+            z-index: 20; /* 提升表单层级 */
+        }
+
+        /* 表单控件美化 */
+        .form-group label {
+            display: block;
+            font-family: var(--font-data);
+            color: var(--neon-cyan);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .cyber-input {
+            width: 100%;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 12px;
+            font-family: var(--font-data);
+            font-size: 1.1rem;
+            transition: 0.3s;
+            position: relative;
+            z-index: 25; /* 确保输入框在最上层 */
+            cursor: text;
+        }
+
+        .cyber-input:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        /* 范围滑块 */
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            z-index: 25; /* 确保滑块在最上层 */
+        }
+
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            position: relative;
+            z-index: 30; /* 确保滑块本体可拖动 */
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-purple);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-purple);
+            transition: 0.2s;
+            position: relative;
+            z-index: 35;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .range-value {
+            font-family: var(--font-data);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--neon-purple);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* 预测按钮 */
+        .predict-btn {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            border: none;
+            color: #fff;
+            font-family: var(--font-title);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 15px 30px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            width: 100%;
+            height: 100%; /* Fill height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(188, 19, 254, 0.4);
+            /* 关键修复：确保按钮自身可以接收点击，但需要处理伪元素遮挡 */
+            z-index: 25;
+        }
+
+        .predict-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 0 40px rgba(188, 19, 254, 0.6);
+            letter-spacing: 4px;
+        }
+
+        .predict-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .predict-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+            transform: rotate(45deg);
+            animation: sheen 3s infinite;
+            /* 核心修复：防止光效层遮挡点击事件 */
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* 确保文字在光效之上 */
+        .predict-btn span {
+            position: relative;
+            z-index: 3;
+        }
+
+        /* --- 结果区域 --- */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 22px;
+            position: relative;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .result-card:hover {
+            border-color: rgba(0, 243, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 30px rgba(0, 243, 255, 0.03);
+            transform: translateY(-4px);
+        }
+
+        .result-card:hover::before {
+            opacity: 1;
+        }
+
+        /* 汇总卡片 */
+        .summary-card {
+            border-radius: 8px;
+            border-top: 3px solid var(--neon-blue);
+            background: linear-gradient(180deg, rgba(0, 102, 255, 0.08) 0%, rgba(0, 0, 0, 0.6) 40%);
+            margin-bottom: 24px;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+            justify-content: space-around;
+            padding: 8px 0;
+        }
+        .summary-stat {
+            text-align: center;
+            flex: 1;
+        }
+        .summary-stat .stat-number {
+            font-family: var(--font-title);
+            font-size: 2rem;
+            line-height: 1;
+            margin-top: 6px;
+        }
+        .summary-stat .stat-label {
+            font-family: var(--font-data);
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* 成功/失败状态边框 */
+        .result-card.success-card {
+            border-top: 3px solid var(--neon-green);
+            background: linear-gradient(180deg, rgba(0, 255, 157, 0.06) 0%, rgba(0, 0, 0, 0.6) 40%);
+        }
+        .result-card.error-card {
+            border-top: 3px solid var(--neon-red);
+            background: linear-gradient(180deg, rgba(255, 0, 85, 0.06) 0%, rgba(0, 0, 0, 0.6) 40%);
+        }
+
+        .res-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 12px;
+        }
+        .res-title {
+            font-family: var(--font-data);
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .res-status {
+            font-size: 0.75rem;
+            font-family: var(--font-data);
+            padding: 3px 10px;
+            border-radius: 2px;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .res-status.text-green {
+            background: rgba(0, 255, 157, 0.15);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+        }
+        .res-status.text-red {
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid rgba(255, 0, 85, 0.3);
+        }
+        .text-green { color: var(--neon-green); }
+        .text-red { color: var(--neon-red); }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.02);
+            border-left: 2px solid rgba(0, 243, 255, 0.15);
+            transition: all 0.2s;
+        }
+        .data-row:hover {
+            background: rgba(0, 243, 255, 0.05);
+            border-left-color: var(--neon-cyan);
+        }
+        .data-label {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.85rem;
+        }
+        .data-val {
+            font-family: var(--font-data);
+            color: var(--neon-cyan);
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+
+        .agent-workflow-box {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid rgba(115, 238, 255, 0.25);
+            border-radius: 6px;
+            background: linear-gradient(135deg, rgba(7, 26, 52, 0.88) 0%, rgba(4, 17, 41, 0.88) 100%);
+        }
+        .agent-workflow-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .agent-workflow-title {
+            font-size: 0.82rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #dff8ff;
+        }
+        .agent-risk-tag {
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .agent-risk-tag.risk-low {
+            color: var(--neon-green);
+            border-color: rgba(0, 255, 136, 0.45);
+            background: rgba(0, 255, 136, 0.1);
+        }
+        .agent-risk-tag.risk-medium {
+            color: var(--neon-gold);
+            border-color: rgba(255, 215, 0, 0.45);
+            background: rgba(255, 215, 0, 0.12);
+        }
+        .agent-risk-tag.risk-high {
+            color: #ff8c5f;
+            border-color: rgba(255, 140, 95, 0.5);
+            background: rgba(255, 140, 95, 0.12);
+        }
+        .agent-risk-tag.risk-critical {
+            color: var(--neon-red);
+            border-color: rgba(255, 0, 85, 0.55);
+            background: rgba(255, 0, 85, 0.15);
+        }
+        .agent-workflow-summary {
+            margin-top: 10px;
+            font-size: 0.84rem;
+            line-height: 1.55;
+            color: rgba(231, 245, 255, 0.9);
+        }
+        .agent-recommend-list {
+            margin: 10px 0 0;
+            padding-left: 18px;
+            color: rgba(200, 230, 255, 0.85);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        .agent-recommend-list li {
+            margin-bottom: 4px;
+        }
+
+        /* --- 图片展示区域样式 --- */
+        .image-comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+            border-top: 1px solid rgba(0, 243, 255, 0.1);
+            padding-top: 15px;
+        }
+        .image-comparison-grid.single-image {
+            grid-template-columns: 1fr;
+        }
+
+        .img-box {
+            position: relative;
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            border-radius: 6px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0d2a4c 0%, #061a33 100%);
+            min-height: 160px;
+        }
+
+        .img-box img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .img-box:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+        }
+
+        .img-box:hover img {
+            filter: brightness(1.1) contrast(1.05);
+        }
+
+        .img-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 100%);
+            color: var(--neon-cyan);
+            font-family: var(--font-data);
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 图片加载占位 */
+        .img-box .img-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 160px;
+            color: rgba(255,255,255,0.2);
+            font-family: var(--font-data);
+            font-size: 0.85rem;
+        }
+
+        /* --- API 状态 --- */
+        .api-status-box {
+            padding: 10px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .api-online { border-left: 3px solid var(--neon-green); color: var(--neon-green); }
+        .api-offline { border-left: 3px solid var(--neon-red); color: var(--neon-red); }
+
+        /* --- 动画 --- */
+        @keyframes sheen {
+            0% { transform: translateX(-150%) rotate(45deg); }
+            100% { transform: translateX(150%) rotate(45deg); }
+        }
+
+        @keyframes pulse-bg {
+            0% { opacity: 0.5; transform: scale(1); }
+            100% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        @keyframes scanline {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+
+        /* Loading Spinner */
+        .cyber-loader {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--neon-cyan);
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* No Data */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255,255,255,0.3);
+            font-family: var(--font-title);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .location-list {
+                max-height: 250px;
+            }
+            .control-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 连接状态浮窗 -->
+<div class="system-status-bar" style="position: fixed; top: 20px; right: 20px; z-index: 100;">
+    <div id="connectionStatus" class="status-pill status-connecting">
+        <i class="fas fa-satellite-dish fa-spin"></i> 初始化链路...
+    </div>
+</div>
+
+<div class="main-wrapper">
+    <!-- 头部区域 -->
+    <header class="header">
+        <div class="brand-box">
+            <h1><i class="fas fa-atom fa-spin" style="font-size: 0.8em; margin-right: 15px; color: var(--neon-cyan);"></i> SENTINEL SYSTEM</h1>
+            <div class="brand-subtitle">// 多气体排放智能监测与反演平台 (CH₄ · NO₂ · CO)</div>
+        </div>
+        <div class="system-status-bar">
+            <div class="status-pill">
+                <i class="fas fa-clock"></i> <span id="clock">00:00:00</span>
+            </div>
+            <div class="status-pill" style="border-color: var(--neon-purple); color: var(--neon-purple);">
+                <i class="fas fa-shield-alt"></i> SECURE
+            </div>
+        </div>
+    </header>
+
+    <!-- 主控台网格 -->
+    <div class="dashboard-grid">
+
+        <!-- 左侧：目标列表 -->
+        <aside class="cyber-panel">
+            <div class="panel-title">
+                <i class="fas fa-crosshairs"></i> 监测目标锁定
+            </div>
+
+            <!-- API 状态 -->
+            <div id="apiStatus" class="api-status-box api-offline">
+                <i class="fas fa-server"></i> <span>等待信号握手...</span>
+            </div>
+
+            <div class="location-list-wrapper">
+                <div id="locationList" class="location-list">
+                    <!-- 动态注入 -->
+                    <div class="empty-state">
+                        <i class="fas fa-radar"></i>
+                        <div>正在扫描区域数据...</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧：控制与结果 -->
+        <main>
+            <!-- 控制面板 -->
+            <section class="cyber-panel" style="margin-bottom: 30px;">
+                <div class="panel-title">
+                    <i class="fas fa-sliders-h"></i> 参数配置中心
+                </div>
+
+                <div class="control-section">
+                    <!-- 气体类型选择 -->
+                    <div class="form-group">
+                        <label>检测气体 [GAS TYPE]</label>
+                        <select id="gasType" class="cyber-input" style="cursor:pointer;">
+                            <option value="CH4" selected>CH₄ 甲烷</option>
+                            <option value="NO2">NO₂ 二氧化氮</option>
+                            <option value="CO">CO 一氧化碳</option>
+                        </select>
+                    </div>
+
+                    <!-- 时间选择 -->
+                    <div class="form-group">
+                        <label>监测起始时间 [START]</label>
+                        <input type="date" id="startTime" class="cyber-input" value="2024-01-01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>监测截止时间 [END]</label>
+                        <input type="date" id="endTime" class="cyber-input" value="2024-12-31">
+                    </div>
+
+                    <!-- 阈值控制 -->
+                    <div class="form-group">
+                        <label>异常阈值设定 [THRESHOLD]</label>
+                        <div class="slider-wrapper">
+                            <input type="range" id="threshold" min="0.1" max="1.0" step="0.1" value="0.5">
+                            <span class="range-value" id="thresholdValue">0.5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 执行按钮行 -->
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <button id="predictBtn" class="predict-btn" disabled>
+                        <span id="btnText"><i class="fas fa-rocket"></i> 启动反演模型</span>
+                    </button>
+
+                    <!-- 状态指示器 -->
+                    <div style="flex: 1; text-align: right; font-family: var(--font-data); color: rgba(255,255,255,0.6);">
+                        <div class="status-indicator">
+                            <i id="statusDot" class="fas fa-circle" style="color: #555; margin-right: 5px;"></i>
+                            <span id="statusText">SYSTEM STANDBY</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 结果面板 -->
+            <section class="cyber-panel">
+                <div class="panel-title">
+                    <i class="fas fa-chart-network"></i> 分析结果可视化
+                </div>
+
+                <div id="resultsContainer">
+                    <div class="empty-state">
+                        <i class="fas fa-microchip"></i>
+                        <div>等待模型计算指令...</div>
+                        <div style="font-size: 0.8rem; margin-top: 10px; color: rgba(255,255,255,0.2);">AWAITING MODEL INPUT</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<script>
+    // --- 装饰性脚本：时钟 ---
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', {hour12: false});
+        const clockEl = document.getElementById('clock');
+        if(clockEl) clockEl.textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ==========================================
+    // 核心业务逻辑
+    // ==========================================
+
+    // 配置常量
+    const CONFIG = {
+        MESSAGE_TYPES: {
+            MOL_READY: 'MOL_READY',
+            REQUEST_LOCATION_DATA: 'REQUEST_LOCATION_DATA',
+            LOCATION_DATA: 'LOCATION_DATA',
+            LOCATION_UPDATE: 'LOCATION_UPDATE',
+            PREDICTION_RESULT: 'PREDICTION_RESULT',
+            PREDICTION_COMPLETE: 'PREDICTION_COMPLETE',
+            PREDICTION_ERROR: 'PREDICTION_ERROR',
+            PARENT_READY: 'PARENT_READY'
+        },
+        STATUS: {
+            READY: 'ready',
+            PROCESSING: 'processing',
+            ERROR: 'error'
+        },
+        CONNECTION: {
+            CONNECTED: 'connected',
+            DISCONNECTED: 'disconnected',
+            CONNECTING: 'connecting'
+        },
+        TIMEOUTS: {
+            CONNECTION: 1000, // 缩短到1秒，提升响应感
+            NOTIFICATION: 3000,
+            RETRY: 10000
+        },
+        MOCK_DATA: [
+            { lon: 117.6791, lat: 38.5348, name: "大港油田核心区", city: "黄骅" },
+            { lon: 116.1234, lat: 38.7778, name: "任丘作业区", city: "任丘" },
+            { lon: 117.6157, lat: 38.4591, name: "中海油中捷石化", city: "黄骅" },
+            { lon: 112.8429, lat: 32.6873, name: "河南油田二厂", city: "南阳" }
+        ]
+    };
+
+    // 应用状态管理
+    const AppState = {
+        locations: [],
+        isProcessing: false,
+        parentWindow: null,
+        isParentConnected: false,
+        isBackendOnline: false,
+        retryInterval: null,
+        domInitialized: false
+    };
+
+    // DOM 元素缓存 (将在 init 中填充)
+    let DOM = {};
+
+    // 初始化应用
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. 初始化 DOM 引用
+        initDOM();
+
+        // 2. 初始化通信和状态
+        initializeCommunication();
+        setupEventListeners();
+        checkBackendStatus();
+    });
+
+    function initDOM() {
+        DOM = {
+            locationList: document.getElementById('locationList'),
+            predictBtn: document.getElementById('predictBtn'),
+            btnText: document.getElementById('btnText'),
+            statusDot: document.getElementById('statusDot'),
+            statusText: document.getElementById('statusText'),
+            resultsContainer: document.getElementById('resultsContainer'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            apiStatus: document.getElementById('apiStatus'),
+            startTime: document.getElementById('startTime'),
+            endTime: document.getElementById('endTime'),
+            threshold: document.getElementById('threshold'),
+            thresholdValue: document.getElementById('thresholdValue'),
+            gasType: document.getElementById('gasType')
+        };
+        AppState.domInitialized = true;
+    }
+
+    // 通信管理
+    function initializeCommunication() {
+        console.log('正在建立与主视图的通信...');
+
+        AppState.parentWindow = window.parent;
+        window.addEventListener('message', handleParentMessage);
+
+        sendToParent({
+            type: CONFIG.MESSAGE_TYPES.MOL_READY,
+            message: 'mol.html 已加载完成'
+        });
+
+        // 快速响应：如果在短时间内没有收到父级消息，自动加载演示数据，让按钮可用
+        setTimeout(() => {
+            if (!AppState.isParentConnected) {
+                updateConnectionStatus(CONFIG.CONNECTION.DISCONNECTED, '独立运行模式');
+                loadMockData();
+            }
+        }, CONFIG.TIMEOUTS.CONNECTION);
+
+        AppState.retryInterval = setInterval(() => {
+            if (!AppState.isParentConnected) {
+                requestLocationData();
+            }
+        }, CONFIG.TIMEOUTS.RETRY);
+    }
+
+    // 处理来自父窗口的消息
+    function handleParentMessage(event) {
+        const data = event.data;
+        if (!data || !data.type) return;
+
+        console.log('收到主视图消息:', data);
+
+        switch (data.type) {
+            case CONFIG.MESSAGE_TYPES.PARENT_READY:
+                handleParentReady();
+                break;
+            case CONFIG.MESSAGE_TYPES.LOCATION_DATA:
+                handleLocationData(data.locations);
+                updateConnectionStatus(CONFIG.CONNECTION.CONNECTED, '主视图链路已接通');
+                AppState.isParentConnected = true;
+                break;
+            case CONFIG.MESSAGE_TYPES.LOCATION_UPDATE:
+                handleLocationUpdate(data);
+                break;
+            case CONFIG.MESSAGE_TYPES.PREDICTION_RESULT:
+                displayResults(data);
+                break;
+        }
+    }
+
+    function handleParentReady() {
+        sendToParent({
+            type: CONFIG.MESSAGE_TYPES.MOL_READY,
+            message: 'mol.html 已准备接收数据'
+        });
+    }
+
+    function sendToParent(message) {
+        if (AppState.parentWindow && AppState.parentWindow !== window) {
+            AppState.parentWindow.postMessage(message, '*');
+        }
+    }
+
+    function requestLocationData() {
+        sendToParent({
+            type: CONFIG.MESSAGE_TYPES.REQUEST_LOCATION_DATA,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    function updateConnectionStatus(status, message) {
+        if (!AppState.domInitialized) return;
+
+        let iconClass = '';
+        let colorClass = '';
+        let borderColor = '';
+
+        switch(status) {
+            case CONFIG.CONNECTION.CONNECTED:
+                colorClass = 'var(--neon-green)';
+                borderColor = 'var(--neon-green)';
+                iconClass = 'fa-link';
+                break;
+            case CONFIG.CONNECTION.DISCONNECTED:
+                colorClass = '#fff'; // 断开时稍微柔和一点
+                borderColor = 'rgba(255,255,255,0.3)';
+                iconClass = 'fa-laptop-code'; // 换个图标表示本地模式
+                break;
+            case CONFIG.CONNECTION.CONNECTING:
+                colorClass = 'var(--neon-gold)';
+                borderColor = 'var(--neon-gold)';
+                iconClass = 'fa-sync fa-spin';
+                break;
+        }
+
+        DOM.connectionStatus.style.borderColor = borderColor;
+        DOM.connectionStatus.style.color = colorClass;
+        DOM.connectionStatus.innerHTML = `<i class="fas ${iconClass}"></i> ${message}`;
+    }
+
+    async function checkBackendStatus() {
+        try {
+            // 构建后端服务器地址 - 尝试 localhost:5000
+            const backendUrl = 'http://localhost:5000/sentinel/process_sentinel';
+            
+            console.log('🔍 检查后端连接:', backendUrl);
+
+            const response = await fetch(backendUrl, {
+                method: 'OPTIONS',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            console.log('📊 后端响应状态:', response.status);
+
+            if (response.ok) {
+                AppState.isBackendOnline = true;
+                console.log('✅ 后端在线！');
+                if(AppState.domInitialized) {
+                    DOM.apiStatus.className = 'api-status-box api-online';
+                    DOM.apiStatus.innerHTML = '<i class="fas fa-check-circle"></i> 运算核心在线';
+                }
+            } else {
+                throw new Error('服务不可用: ' + response.status);
+            }
+        } catch (error) {
+            AppState.isBackendOnline = false;
+            console.log('❌ 后端离线:', error.message);
+            if(AppState.domInitialized) {
+                DOM.apiStatus.className = 'api-status-box api-offline';
+                DOM.apiStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> 后端离线 — 无法获取数据';
+            }
+        }
+    }
+
+    function setupEventListeners() {
+        if (!AppState.domInitialized) return;
+
+        DOM.predictBtn.addEventListener('click', startPrediction);
+
+        if (DOM.threshold && DOM.thresholdValue) {
+            DOM.threshold.addEventListener('input', function() {
+                DOM.thresholdValue.textContent = this.value;
+            });
+        }
+
+        if (DOM.startTime && DOM.endTime) {
+            const today = new Date().toISOString().split('T')[0];
+            DOM.startTime.max = today;
+            DOM.endTime.max = today;
+
+            DOM.startTime.addEventListener('change', function() {
+                DOM.endTime.min = this.value;
+            });
+
+            DOM.endTime.addEventListener('change', function() {
+                DOM.startTime.max = this.value;
+            });
+        }
+    }
+
+    function handleLocationData(locationData) {
+        if (locationData && locationData.length > 0) {
+            AppState.locations = locationData;
+            renderLocationList();
+            updateStatus(CONFIG.STATUS.READY, `数据装载完成: ${AppState.locations.length} 个目标`);
+
+            // 确保按钮启用
+            if (DOM.predictBtn) DOM.predictBtn.disabled = false;
+        } else {
+            updateStatus(CONFIG.STATUS.ERROR, '无效的位置数据');
+            loadMockData();
+        }
+    }
+
+    function renderLocationList() {
+        if (!AppState.domInitialized) return;
+
+        if (AppState.locations.length === 0) {
+            DOM.locationList.innerHTML = '<div class="empty-state">暂无位置数据</div>';
+            return;
+        }
+
+        const locationItems = AppState.locations.map((location, index) => `
+            <div class="location-item">
+                <div class="location-name">
+                    ${location.name || '未命名区域'}
+                    <span class="location-city">${location.city || 'N/A'}</span>
+                </div>
+                <div class="location-coords">
+                    LNG: ${location.lon.toFixed(4)} | LAT: ${location.lat.toFixed(4)}
+                </div>
+            </div>
+        `).join('');
+
+        DOM.locationList.innerHTML = locationItems;
+    }
+
+    function handleLocationUpdate(updateData) {
+        const { action, location, total } = updateData;
+
+        if (!location) return;
+
+        switch (action) {
+            case 'added':
+                if (!AppState.locations.some(loc => loc.lon === location.lon && loc.lat === location.lat)) {
+                    AppState.locations.push(location);
+                    renderLocationList();
+                    updateStatus(CONFIG.STATUS.READY, `新增目标锁定 (Total: ${AppState.locations.length})`);
+                }
+                break;
+            case 'removed':
+                AppState.locations = AppState.locations.filter(loc =>
+                    !(loc.lon === location.lon && loc.lat === location.lat)
+                );
+                renderLocationList();
+                updateStatus(CONFIG.STATUS.READY, `目标移除 (Total: ${AppState.locations.length})`);
+                break;
+            case 'updated':
+                const index = AppState.locations.findIndex(loc =>
+                    loc.lon === location.lon && loc.lat === location.lat
+                );
+                if (index !== -1) {
+                    AppState.locations[index] = location;
+                    renderLocationList();
+                    updateStatus(CONFIG.STATUS.READY, `目标参数更新 (Total: ${AppState.locations.length})`);
+                }
+                break;
+        }
+
+        if (AppState.locations.length > 0 && DOM.predictBtn) {
+            DOM.predictBtn.disabled = false;
+        }
+    }
+
+    async function startPrediction() {
+        console.log("点击了预测按钮"); // Debug log
+
+        if (AppState.isProcessing) return;
+
+        // 双重检查，防止空数据点击
+        if (AppState.locations.length === 0) {
+            alert("请先等待数据加载");
+            return;
+        }
+
+        AppState.isProcessing = true;
+        updateStatus(CONFIG.STATUS.PROCESSING, '正在进行光谱反演计算...');
+        DOM.predictBtn.disabled = true;
+        DOM.btnText.innerHTML = '<div class="cyber-loader" style="display:inline-block; vertical-align:middle; margin-right:10px;"></div> 计算中...';
+
+        try {
+            // 给用户一点视觉反馈时间，即使是模拟数据
+            await new Promise(r => setTimeout(r, 800));
+
+            const results = await sendPredictionRequest();
+            displayResults(results);
+
+            sendToParent({
+                type: CONFIG.MESSAGE_TYPES.PREDICTION_COMPLETE,
+                results: results,
+                locationCount: AppState.locations.length
+            });
+
+        } catch (error) {
+            console.error('预测失败:', error);
+            handlePredictionError(error);
+        } finally {
+            AppState.isProcessing = false;
+            if(DOM.predictBtn) DOM.predictBtn.disabled = false;
+            if(DOM.btnText) DOM.btnText.innerHTML = '<i class="fas fa-rocket"></i> 重新启动反演';
+        }
+    }
+
+    async function sendPredictionRequest() {
+        console.log("======== sendPredictionRequest 调试 ========");
+        console.log("后端在线状态:", AppState.isBackendOnline);
+        console.log("位置数量:", AppState.locations.length);
+        
+        const gasType = DOM.gasType?.value || 'CH4';
+        
+        // 气体信息映射
+        const GAS_INFO = {
+            'CH4': { name: '甲烷', unit: 'ppm', color: 'var(--neon-cyan)', endpoint: '/sentinel/process_sentinel' },
+            'NO2': { name: '二氧化氮', unit: 'μmol/m²', color: 'var(--neon-red)', endpoint: '/sentinel/process_sentinel_gas' },
+            'CO':  { name: '一氧化碳', unit: 'μmol/m²', color: 'var(--neon-gold)', endpoint: '/sentinel/process_sentinel_gas' }
+        };
+        const gasInfo = GAS_INFO[gasType];
+
+        const predictionPromises = AppState.locations.map(async (location, index) => {
+            const predictionData = {
+                lat: location.lat,
+                lon: location.lon,
+                scale: 10,
+                time_start: DOM.startTime?.value || '2024-01-01',
+                time_end: DOM.endTime?.value || '2024-12-31',
+                file_name: `location_${index}_${Date.now()}`,
+                threshold: parseFloat(DOM.threshold?.value || 0.5),
+                name: location.name,
+                city: location.city,
+                gas_type: gasType,
+                agent_mode: 'closed_loop'
+            };
+
+            console.log(`\n[位置 ${index}] 预测数据:`, predictionData);
+
+            // 如果后端离线，直接返回错误，不使用假数据
+            if (!AppState.isBackendOnline) {
+                console.log(`[位置 ${index}] 后端离线`);
+                return { location: location, result: null, success: false, error: '后端服务离线，无法获取真实数据。请先启动后端服务。' };
+            }
+
+            try {
+                const backendUrl = `http://localhost:5000${gasInfo.endpoint}`;
+                console.log(`[位置 ${index}] 发送 API 请求到 ${backendUrl} (${gasType})`);
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(predictionData)
+                });
+
+                console.log(`[位置 ${index}] 响应状态:`, response.status);
+
+                if (!response.ok) {
+                    const errBody = await response.json().catch(() => ({}));
+                    throw new Error(errBody.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log(`[位置 ${index}] 返回结果:`, result);
+                console.log(`[位置 ${index}] images 字段:`, result.images);
+                
+                return { location: location, result: result, success: true };
+            } catch (error) {
+                console.warn(`[位置 ${index}] API请求失败:`, error);
+                return { location: location, result: null, success: false, error: error.message || '卫星数据下载失败，请稍后重试' };
+            }
+        });
+
+        const results = await Promise.all(predictionPromises);
+
+        console.log("所有位置处理完成，最终结果:", results);
+
+        return {
+            success: true,
+            timestamp: new Date().toISOString(),
+            results: results,
+            backendOnline: AppState.isBackendOnline
+        };
+    }
+
+    function displayResults(results) {
+        console.log("======== displayResults 调试 ========");
+        console.log("接收的完整 results:", results);
+        
+        if (!results || !results.results) {
+            console.warn("无有效数据返回");
+            DOM.resultsContainer.innerHTML = '<div class="empty-state">无有效数据返回</div>';
+            return;
+        }
+
+        const gasType = DOM.gasType?.value || 'CH4';
+        const GAS_DISPLAY = {
+            'CH4': { label: 'CH₄ 浓度均值', unit: 'ppm', color: 'var(--neon-cyan)', maskLabel: 'CH₄ AI INFERENCE', rgbLabel: 'OPTICAL RGB' },
+            'NO2': { label: 'NO₂ 柱浓度均值', unit: 'mol/m²', color: 'var(--neon-red)', maskLabel: 'NO₂ 检测掩膜', rgbLabel: 'NO₂ 浓度分布' },
+            'CO':  { label: 'CO 柱浓度均值',  unit: 'mol/m²', color: 'var(--neon-gold)', maskLabel: 'CO 检测掩膜', rgbLabel: 'CO 浓度分布' }
+        };
+        const gasDisp = GAS_DISPLAY[gasType] || GAS_DISPLAY['CH4'];
+
+        const successfulResults = results.results.filter(r => r.success);
+        const failedResults = results.results.filter(r => !r.success);
+
+        // 调试：打印每个结果
+        results.results.forEach((item, index) => {
+            console.log(`\n--- 结果 ${index} ---`);
+            console.log("success:", item.success);
+            console.log("location:", item.location);
+            console.log("result:", item.result);
+            if (item.result) {
+                console.log("images 字段:", item.result.images);
+            }
+        });
+
+        // 生成汇总面板
+        const summaryHtml = `
+            <div class="result-card summary-card">
+                <div class="res-header">
+                    <span class="res-title"><i class="fas fa-satellite" style="margin-right:8px;color:var(--neon-blue)"></i>MISSION REPORT</span>
+                    <span style="font-family:var(--font-data);font-size:0.8rem;color:rgba(255,255,255,0.35)">${new Date().toLocaleString()}</span>
+                </div>
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <div class="stat-label">TOTAL</div>
+                        <div class="stat-number" style="color:#fff">${results.results.length}</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-label">SUCCESS</div>
+                        <div class="stat-number text-green">${successfulResults.length}</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-label">FAILED</div>
+                        <div class="stat-number text-red">${failedResults.length}</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-label">GAS TYPE</div>
+                        <div class="stat-number" style="color:${gasDisp.color};font-size:1.2rem">${gasType}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const cardsHtml = results.results.map((item, index) => {
+            const location = item.location;
+            const result = item.result;
+            const analysis = result?.analysis_results;
+            const agentWorkflow = result?.agent_workflow;
+            let images = result?.images;
+            const isSuccess = item.success;
+            const riskLevel = agentWorkflow?.risk_level || 'low';
+            const riskTagClass = `risk-${riskLevel}`;
+            const workflowSummary = agentWorkflow?.user_feedback?.message || agentWorkflow?.diagnosis?.summary || '';
+            const recommendations = Array.isArray(agentWorkflow?.recommendations)
+                ? agentWorkflow.recommendations.slice(0, 3)
+                : [];
+            const recommendationsHtml = recommendations.length
+                ? `<ul class="agent-recommend-list">${recommendations.map(t => `<li>${t}</li>`).join('')}</ul>`
+                : '';
+
+            // 处理图像 URL - 确保是完整的 URL
+            if (images) {
+                const backendBaseUrl = 'http://localhost:5000';
+                images = {
+                    rgb: images.rgb.startsWith('http') ? images.rgb : `${backendBaseUrl}${images.rgb}`,
+                    mask: images.mask.startsWith('http') ? images.mask : `${backendBaseUrl}${images.mask}`
+                };
+                console.log(`[卡片 ${index}] 处理后的图像 URL:`, images);
+            }
+
+            return `
+                <div class="result-card ${isSuccess ? 'success-card' : 'error-card'}">
+                    <div class="res-header">
+                        <span class="res-title">${location.name || `Target ${index + 1}`}</span>
+                        <span class="res-status ${isSuccess ? 'text-green' : 'text-red'}">
+                            ${isSuccess ? '<i class="fas fa-check-circle"></i> OPTIMAL' : '<i class="fas fa-exclamation-circle"></i> ERROR'}
+                        </span>
+                    </div>
+
+                    <div class="data-row">
+                        <span class="data-label"><i class="fas fa-map-marker-alt" style="margin-right:6px;opacity:0.6"></i>区域/城市</span>
+                        <span class="data-val" style="color: #fff">${location.city || 'Unknown'}</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label"><i class="fas fa-chart-bar" style="margin-right:6px;opacity:0.6"></i>${gasDisp.label}</span>
+                        <span class="data-val" style="color:${gasDisp.color}">${analysis ? (gasType === 'CH4' ? analysis.mean_concentration.toFixed(4) : gasType === 'CO' ? (analysis.mean_concentration * 1e3).toFixed(2) : (analysis.mean_concentration * 1e6).toFixed(2)) : '---'} <span style="font-size:0.75em;opacity:0.7">${gasType === 'CH4' ? 'ppm' : gasType === 'CO' ? 'mmol/m²' : 'μmol/m²'}</span></span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label"><i class="fas fa-percentage" style="margin-right:6px;opacity:0.6"></i>羽流检测率</span>
+                        <span class="data-val">${analysis ? (analysis.detection_ratio * 100).toFixed(2) : '---'}%</span>
+                    </div>
+
+                    ${agentWorkflow ? `
+                    <div class="agent-workflow-box">
+                        <div class="agent-workflow-head">
+                            <span class="agent-workflow-title"><i class="fas fa-robot" style="margin-right:6px"></i>智能体一体化处置</span>
+                            <span class="agent-risk-tag ${riskTagClass}">${agentWorkflow.risk_level_text || riskLevel}</span>
+                        </div>
+                        <div class="agent-workflow-summary">${workflowSummary}</div>
+                        ${recommendationsHtml}
+                    </div>
+                    ` : ''}
+
+                    ${images ? `
+                    <div class="image-comparison-grid${gasType !== 'CH4' ? ' single-image' : ''}">
+                        <div class="img-box">
+                            <img src="${images.rgb}" alt="RGB Layer" onerror="this.parentElement.innerHTML='<div class=\\'img-placeholder\\'><i class=\\'fas fa-image\\' style=\\'font-size:2rem;margin-bottom:8px;display:block\\'></i>暂无影像</div>'">
+                            <div class="img-label"><i class="fas fa-layer-group" style="margin-right:5px"></i>${gasDisp.rgbLabel}</div>
+                        </div>
+                        ${gasType === 'CH4' ? `
+                        <div class="img-box">
+                            <img src="${images.mask}" alt="Model Output" onerror="this.parentElement.innerHTML='<div class=\\'img-placeholder\\'><i class=\\'fas fa-brain\\' style=\\'font-size:2rem;margin-bottom:8px;display:block\\'></i>暂无掩膜</div>'">
+                            <div class="img-label"><i class="fas fa-brain" style="margin-right:5px"></i>${gasDisp.maskLabel}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+
+                    ${!isSuccess ? `
+                    <div style="margin-top:12px; padding:10px; background:rgba(255,0,85,0.08); border-left:3px solid var(--neon-red); border-radius:0 4px 4px 0;">
+                        <span style="color:var(--neon-red); font-size:0.8rem; font-family:var(--font-data);">
+                            <i class="fas fa-exclamation-triangle" style="margin-right:6px"></i>ERR: ${item.error}
+                        </span>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
+        DOM.resultsContainer.innerHTML = summaryHtml + `<div class="results-grid">${cardsHtml}</div>`;
+        updateStatus(CONFIG.STATUS.READY, `任务完成`);
+    }
+
+    function handlePredictionError(error) {
+        updateStatus(CONFIG.STATUS.ERROR, `SYSTEM FAILURE: ${error.message}`);
+        sendToParent({
+            type: CONFIG.MESSAGE_TYPES.PREDICTION_ERROR,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    function updateStatus(status, message) {
+        if(!DOM.statusText) return;
+        DOM.statusText.textContent = message.toUpperCase();
+
+        // Reset colors
+        DOM.statusDot.style.color = '#555';
+        DOM.statusDot.classList.remove('fa-spin');
+
+        switch(status) {
+            case CONFIG.STATUS.READY:
+                DOM.statusDot.style.color = 'var(--neon-green)';
+                DOM.statusDot.style.textShadow = '0 0 5px var(--neon-green)';
+                break;
+            case CONFIG.STATUS.PROCESSING:
+                DOM.statusDot.style.color = 'var(--neon-gold)';
+                DOM.statusDot.classList.add('fa-spin');
+                break;
+            case CONFIG.STATUS.ERROR:
+                DOM.statusDot.style.color = 'var(--neon-red)';
+                break;
+        }
+    }
+
+    function loadMockData() {
+        console.log('启动演示/独立模式...');
+        handleLocationData(CONFIG.MOCK_DATA);
+    }
+
+    // generateMockResult 已移除 — 所有数据均来自后端真实 API
+</script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,1223 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云谱智探 — 登录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #041129;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        /* ========== 星空背景 ========== */
+        .starfield {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+        }
+        .starfield canvas { width: 100%; height: 100%; }
+
+        /* ========== 地球背景图 ========== */
+        .earth-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            background: url('太空视角地球.jpg') center center / cover no-repeat;
+            opacity: 0.25;
+        }
+        .earth-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 30% 60%, transparent 20%, #041129 70%);
+        }
+
+        /* ========== 轨道装饰线 ========== */
+        .orbit-ring {
+            position: fixed;
+            border: 1px solid rgba(0, 198, 255, 0.08);
+            border-radius: 50%;
+            z-index: 2;
+            animation: orbit-spin 60s linear infinite;
+        }
+        .orbit-ring:nth-child(1) {
+            width: 600px; height: 600px;
+            top: 50%; left: 30%;
+            transform: translate(-50%, -50%);
+        }
+        .orbit-ring:nth-child(2) {
+            width: 900px; height: 900px;
+            top: 50%; left: 30%;
+            transform: translate(-50%, -50%);
+            animation-duration: 90s;
+            border-color: rgba(123, 97, 255, 0.06);
+        }
+        .orbit-ring:nth-child(3) {
+            width: 1200px; height: 1200px;
+            top: 50%; left: 30%;
+            transform: translate(-50%, -50%);
+            animation-duration: 120s;
+            border-color: rgba(0, 255, 213, 0.04);
+        }
+        @keyframes orbit-spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to   { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* ========== 卫星小点 ========== */
+        .satellite-dot {
+            position: fixed;
+            width: 4px; height: 4px;
+            background: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00f3ff, 0 0 20px rgba(0, 243, 255, 0.4);
+            z-index: 3;
+            animation: satellite-move 20s linear infinite;
+        }
+        .satellite-dot:nth-child(5) {
+            animation-duration: 28s;
+            background: #7b61ff;
+            box-shadow: 0 0 8px #7b61ff;
+        }
+        .satellite-dot:nth-child(6) {
+            animation-duration: 35s;
+            animation-delay: -8s;
+            background: #00ffd5;
+            box-shadow: 0 0 8px #00ffd5;
+            width: 3px; height: 3px;
+        }
+        .satellite-dot:nth-child(7) {
+            animation-duration: 24s;
+            animation-delay: -15s;
+            background: #ffd700;
+            box-shadow: 0 0 6px #ffd700;
+            width: 3px; height: 3px;
+        }
+        .satellite-dot:nth-child(8) {
+            animation-duration: 32s;
+            animation-delay: -5s;
+            background: #ff6b9d;
+            box-shadow: 0 0 8px #ff6b9d;
+            width: 3px; height: 3px;
+        }
+        .satellite-dot:nth-child(9) {
+            animation-duration: 22s;
+            animation-delay: -12s;
+            background: #00c6ff;
+            box-shadow: 0 0 10px #00c6ff;
+        }
+        @keyframes satellite-move {
+            0%   { top: 10%; left: 5%; }
+            25%  { top: 30%; left: 80%; }
+            50%  { top: 70%; left: 60%; }
+            75%  { top: 50%; left: 15%; }
+            100% { top: 10%; left: 5%; }
+        }
+
+        /* ========== 流星 ========== */
+        .shooting-star {
+            position: fixed;
+            width: 80px; height: 1px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+            z-index: 3;
+            opacity: 0;
+            transform: rotate(-35deg);
+            animation: shoot 4s ease-in infinite;
+        }
+        .shooting-star:nth-child(9)  { top: 15%; left: 70%; animation-delay: 0s; }
+        .shooting-star:nth-child(10) { top: 35%; left: 85%; animation-delay: 1.2s; width: 60px; }
+        .shooting-star:nth-child(11) { top: 8%;  left: 40%; animation-delay: 2.4s; width: 100px; }
+        .shooting-star:nth-child(12) { top: 55%; left: 90%; animation-delay: 3.5s; width: 50px; }
+        .shooting-star:nth-child(13) { top: 25%; left: 55%; animation-delay: 4.6s; width: 90px; }
+        .shooting-star:nth-child(14) { top: 45%; left: 30%; animation-delay: 5.8s; width: 70px; transform: rotate(-40deg); }
+        .shooting-star:nth-child(15) { top: 12%; left: 20%; animation-delay: 6.9s; width: 110px; }
+        .shooting-star:nth-child(16) { top: 65%; left: 75%; animation-delay: 8s; width: 55px; transform: rotate(-30deg); }
+        .shooting-star:nth-child(17) { top: 5%;  left: 60%; animation-delay: 9.1s; width: 85px; }
+        .shooting-star:nth-child(18) { top: 40%; left: 15%; animation-delay: 10.2s; width: 95px; transform: rotate(-42deg); }
+        .shooting-star:nth-child(19) { top: 20%; left: 80%; animation-delay: 11.3s; width: 65px; }
+        .shooting-star:nth-child(20) { top: 70%; left: 50%; animation-delay: 12.4s; width: 75px; transform: rotate(-28deg); }
+        .shooting-star:nth-child(21) { top: 30%; left: 10%; animation-delay: 13.5s; width: 105px; }
+        .shooting-star:nth-child(22) { top: 50%; left: 65%; animation-delay: 14.6s; width: 45px; transform: rotate(-38deg); }
+        .shooting-star:nth-child(23) { top: 18%; left: 45%; animation-delay: 15.7s; width: 88px; }
+        .shooting-star:nth-child(24) { top: 60%; left: 25%; animation-delay: 16.8s; width: 72px; transform: rotate(-33deg); }
+        .shooting-star:nth-child(25) { top: 10%; left: 92%; animation-delay: 17.9s; width: 98px; }
+        .shooting-star:nth-child(26) { top: 48%; left: 48%; animation-delay: 19s; width: 62px; transform: rotate(-45deg); }
+        .shooting-star:nth-child(27) { top: 75%; left: 35%; animation-delay: 20s; width: 80px; }
+        .shooting-star:nth-child(28) { top: 3%;  left: 78%; animation-delay: 21s; width: 115px; transform: rotate(-25deg); }
+        @keyframes shoot {
+            0%   { opacity: 0; transform: rotate(-35deg) translateX(0); }
+            5%   { opacity: 1; }
+            15%  { opacity: 0; transform: rotate(-35deg) translateX(-300px); }
+            100% { opacity: 0; }
+        }
+
+        /* ========== 旋转星云 ========== */
+        .nebula-glow {
+            position: fixed;
+            width: 500px; height: 500px;
+            border-radius: 50%;
+            z-index: 1;
+            opacity: 0.08;
+            filter: blur(60px);
+            animation: nebula-pulse 12s ease-in-out infinite alternate;
+        }
+        .nebula-glow.nb1 {
+            top: -10%; right: -5%;
+            background: radial-gradient(circle, #7b61ff, transparent 70%);
+        }
+        .nebula-glow.nb2 {
+            bottom: -15%; left: -10%;
+            background: radial-gradient(circle, #00c6ff, transparent 70%);
+            animation-delay: -6s;
+            width: 400px; height: 400px;
+        }
+        @keyframes nebula-pulse {
+            from { opacity: 0.05; transform: scale(1); }
+            to   { opacity: 0.12; transform: scale(1.15); }
+        }
+
+        /* ========== 主容器 ========== */
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ========== 双栏布局容器 ========== */
+        .split-container {
+            display: flex;
+            width: 880px;
+            max-width: 95vw;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+            animation: card-float 6s ease-in-out infinite;
+        }
+        @keyframes card-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        /* ========== 左侧展示区 ========== */
+        .info-panel {
+            width: 400px;
+            background: linear-gradient(160deg, rgba(0, 30, 60, 0.95) 0%, rgba(10, 15, 40, 0.95) 100%);
+            padding: 48px 36px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .info-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('地球夜景.jpg') center center / cover no-repeat;
+            opacity: 0.15;
+            z-index: 0;
+        }
+        .info-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 15, 30, 0.8) 100%);
+            z-index: 1;
+        }
+        .info-panel > * { position: relative; z-index: 2; }
+
+        .info-panel .brand {
+            margin-bottom: 36px;
+        }
+        .info-panel .brand img {
+            width: 56px; height: 56px;
+            filter: drop-shadow(0 0 12px rgba(0, 198, 255, 0.5));
+            margin-bottom: 14px;
+        }
+        .info-panel .brand h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00c6ff, #7b61ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .info-panel .brand p {
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 2px;
+        }
+
+        .feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+        .feature-list li:hover {
+            background: rgba(0, 198, 255, 0.06);
+            border-color: rgba(0, 198, 255, 0.15);
+            transform: translateX(4px);
+        }
+        .feature-list .feat-icon {
+            flex-shrink: 0;
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .feature-list .feat-icon.blue   { background: rgba(0, 198, 255, 0.12); }
+        .feature-list .feat-icon.purple { background: rgba(123, 97, 255, 0.12); }
+        .feature-list .feat-icon.green  { background: rgba(0, 255, 213, 0.12); }
+        .feature-list .feat-icon.gold   { background: rgba(255, 200, 0, 0.12); }
+        .feature-list .feat-text h4 {
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        .feature-list .feat-text p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            line-height: 1.5;
+        }
+
+        .info-panel .earth-preview {
+            margin-top: 28px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+        .info-panel .earth-preview img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+            filter: brightness(0.7) saturate(1.3);
+        }
+        .info-panel .earth-preview .preview-label {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 8px 14px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .preview-label .live-dot {
+            width: 6px; height: 6px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: dot-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes dot-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ========== 卡片（右侧） ========== */
+        .auth-card {
+            width: 480px;
+            max-width: 95vw;
+            background: rgba(10, 15, 23, 0.9);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: none;
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 48px 40px 36px;
+            box-shadow: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 响应式：小屏竖排 */
+        @media (max-width: 800px) {
+            .split-container {
+                flex-direction: column;
+                width: 440px;
+            }
+            .info-panel {
+                width: 100%;
+                padding: 30px 28px;
+            }
+            .info-panel .earth-preview { display: none; }
+            .auth-card {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
+        }
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -50%; right: -50%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 198, 255, 0.5), rgba(123, 97, 255, 0.5), transparent);
+            animation: shimmer-line 3s ease-in-out infinite;
+        }
+        @keyframes shimmer-line {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        /* 科技角标 */
+        .auth-card .corner-tl, .auth-card .corner-br {
+            position: absolute;
+            width: 20px; height: 20px;
+        }
+        .auth-card .corner-tl {
+            top: -1px; left: -1px;
+            border-top: 2px solid #00c6ff;
+            border-left: 2px solid #00c6ff;
+        }
+        .auth-card .corner-br {
+            bottom: -1px; right: -1px;
+            border-bottom: 2px solid #7b61ff;
+            border-right: 2px solid #7b61ff;
+        }
+        /* 分割线装饰 */
+        .split-container .corner-outer-tl,
+        .split-container .corner-outer-br {
+            position: absolute;
+            width: 24px; height: 24px;
+            z-index: 20;
+        }
+        .split-container .corner-outer-tl {
+            top: -1px; left: -1px;
+            border-top: 2px solid rgba(0, 198, 255, 0.5);
+            border-left: 2px solid rgba(0, 198, 255, 0.5);
+            border-radius: 20px 0 0 0;
+        }
+        .split-container .corner-outer-br {
+            bottom: -1px; right: -1px;
+            border-bottom: 2px solid rgba(123, 97, 255, 0.5);
+            border-right: 2px solid rgba(123, 97, 255, 0.5);
+            border-radius: 0 0 20px 0;
+        }
+
+        /* ========== Logo 区域（右侧卡片内） ========== */
+        .logo-area {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .logo-area h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00c6ff, #7b61ff, #00ffd5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+        .logo-area p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.35);
+            letter-spacing: 3px;
+        }
+
+        /* ========== Tab 切换 ========== */
+        .tab-bar {
+            display: flex;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 28px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+        .tab-btn.active {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            box-shadow: 0 2px 12px rgba(96, 165, 250, 0.2);
+        }
+        .tab-btn:hover:not(.active) {
+            color: #e2e8f0;
+        }
+
+        /* ========== 表单面板 ========== */
+        .form-panel {
+            display: none;
+        }
+        .form-panel.active {
+            display: block;
+            animation: fadeSlideIn 0.35s ease;
+        }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ========== 输入框 ========== */
+        .field {
+            margin-bottom: 18px;
+        }
+        .field label {
+            display: block;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .input-wrap {
+            position: relative;
+        }
+        .input-wrap .icon {
+            position: absolute;
+            left: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: #475569;
+            font-size: 1rem;
+            transition: color 0.3s;
+            pointer-events: none;
+        }
+        .input-wrap input {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input-wrap input::placeholder {
+            color: #475569;
+        }
+        .input-wrap input:focus {
+            border-color: rgba(96, 165, 250, 0.5);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1), 0 0 20px rgba(0, 198, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+            animation: input-glow 1.5s ease-in-out infinite;
+        }
+        @keyframes input-glow {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1), 0 0 20px rgba(0, 198, 255, 0.15); }
+            50% { box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2), 0 0 30px rgba(0, 198, 255, 0.25); }
+        }
+        .input-wrap input:focus + .icon,
+        .input-wrap input:focus ~ .icon {
+            color: #60a5fa;
+        }
+
+        .captcha-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .captcha-row .input-wrap {
+            flex: 1;
+        }
+        .captcha-box {
+            min-width: 112px;
+            height: 44px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            background:
+                linear-gradient(135deg, rgba(30, 58, 138, 0.55), rgba(30, 64, 175, 0.25)),
+                repeating-linear-gradient(
+                    -18deg,
+                    rgba(255, 255, 255, 0.04) 0,
+                    rgba(255, 255, 255, 0.04) 6px,
+                    transparent 6px,
+                    transparent 12px
+                );
+            color: #93c5fd;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+            user-select: none;
+            cursor: pointer;
+        }
+        .captcha-refresh {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            color: #93c5fd;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .captcha-refresh:hover {
+            color: #bfdbfe;
+            border-color: rgba(96, 165, 250, 0.35);
+            background: rgba(96, 165, 250, 0.12);
+        }
+
+        /* ========== 提交按钮 ========== */
+        .submit-btn {
+            width: 100%;
+            padding: 13px 0;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 1px;
+            margin-top: 6px;
+            background: linear-gradient(135deg, #0061ff 0%, #60a5fa 50%, #7b61ff 100%);
+            background-size: 200% 100%;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(0, 97, 255, 0.35);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            animation: btn-gradient 3s ease infinite;
+        }
+        @keyframes btn-gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px rgba(0, 97, 255, 0.5);
+        }
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+        .submit-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+            transition: transform 0.6s;
+            transform: translateX(-100%);
+        }
+        .submit-btn:hover::after {
+            transform: translateX(100%);
+        }
+
+        /* ========== 消息提示 ========== */
+        .msg {
+            text-align: center;
+            font-size: 0.85rem;
+            min-height: 20px;
+            margin-top: 14px;
+            transition: all 0.3s;
+        }
+        .msg.success { color: #34d399; }
+        .msg.error   { color: #f87171; }
+
+        /* ========== 底部装饰 ========== */
+        .footer-decor {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .footer-decor .tech-badges {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .footer-decor .tech-badges span {
+            font-size: 0.68rem;
+            color: rgba(255, 255, 255, 0.45);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s;
+        }
+        .footer-decor .tech-badges span:hover {
+            background: rgba(0, 198, 255, 0.08);
+            border-color: rgba(0, 198, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .footer-decor p {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 1px;
+        }
+
+        /* ========== 密码可见切换 ========== */
+        .toggle-pwd {
+            position: absolute;
+            right: 14px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none;
+            color: #475569;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 4px;
+            transition: color 0.3s;
+        }
+        .toggle-pwd:hover { color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<!-- 星空背景 Canvas -->
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<!-- 地球背景 -->
+<div class="earth-bg"></div>
+
+<!-- 轨道环 -->
+<div class="orbit-ring"></div>
+<div class="orbit-ring"></div>
+<div class="orbit-ring"></div>
+
+<!-- 卫星小点 -->
+<div class="satellite-dot"></div>
+<div class="satellite-dot"></div>
+<div class="satellite-dot"></div>
+<div class="satellite-dot"></div>
+<div class="satellite-dot"></div>
+<div class="satellite-dot"></div>
+
+<!-- 流星 -->
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+
+<!-- 星云光晕 -->
+<div class="nebula-glow nb1"></div>
+<div class="nebula-glow nb2"></div>
+
+<!-- 主容器 -->
+<div class="login-wrapper">
+    <div class="split-container">
+        <div class="corner-outer-tl"></div>
+        <div class="corner-outer-br"></div>
+
+        <!-- 左侧信息展示区 -->
+        <div class="info-panel">
+            <div class="brand">
+                <img src="logo.png" alt="SkyMethane">
+                <h2>云谱智探</h2>
+                <p>Methane Watch System</p>
+            </div>
+
+            <ul class="feature-list">
+                <li>
+                    <div class="feat-icon blue">🛰️</div>
+                    <div class="feat-text">
+                        <h4>哨兵卫星数据</h4>
+                        <p>Sentinel-2/5P 多光谱影像实时接入</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="feat-icon purple">🧠</div>
+                    <div class="feat-text">
+                        <h4>AI 智能检测</h4>
+                        <p>U-Net 深度学习模型精准识别甲烷羽流</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="feat-icon green">🌍</div>
+                    <div class="feat-text">
+                        <h4>Google Earth Engine</h4>
+                        <p>云端地球科学数据平台强力支撑</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="feat-icon gold">📊</div>
+                    <div class="feat-text">
+                        <h4>排放率分析</h4>
+                        <p>横截面通量法精确计算甲烷排放率</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="earth-preview">
+                <img src="甲烷检测区域.jpg" alt="检测区域">
+                <div class="preview-label">
+                    <span class="live-dot"></span>
+                    大港油田监测区域 · 实时运行中
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧登录卡片 -->
+    <div class="auth-card">
+        <div class="corner-tl"></div>
+        <div class="corner-br"></div>
+        <!-- Logo -->
+        <div class="logo-area">
+            <h1>欢迎回来</h1>
+            <p>登录以继续使用系统</p>
+        </div>
+
+        <!-- Tab 切换 -->
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="login">登 录</button>
+            <button class="tab-btn" data-tab="register">注 册</button>
+        </div>
+
+        <!-- 登录表单 -->
+        <div class="form-panel active" id="panel-login">
+            <div class="field">
+                <label>用户名</label>
+                <div class="input-wrap">
+                    <input type="text" id="login-user" placeholder="请输入用户名" autocomplete="username">
+                    <span class="icon">&#x1F6F0;</span>
+                </div>
+            </div>
+            <div class="field">
+                <label>密码</label>
+                <div class="input-wrap">
+                    <input type="password" id="login-pwd" placeholder="请输入密码" autocomplete="current-password">
+                    <span class="icon">&#x1F512;</span>
+                    <button class="toggle-pwd" type="button" onclick="togglePwd('login-pwd', this)">&#x1F441;</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>验证码</label>
+                <div class="captcha-row">
+                    <div class="input-wrap">
+                        <input type="text" id="login-captcha-input" placeholder="请输入验证码" autocomplete="off" maxlength="4">
+                        <span class="icon">&#x1F5DD;</span>
+                    </div>
+                    <div class="captcha-box" id="login-captcha-code" title="点击刷新验证码">----</div>
+                    <button class="captcha-refresh" type="button" onclick="refreshLoginCaptcha()" title="刷新验证码">&#x21BB;</button>
+                </div>
+            </div>
+            <button class="submit-btn" onclick="doLogin()">登 录</button>
+            <div class="msg" id="login-msg"></div>
+        </div>
+
+        <!-- 注册表单 -->
+        <div class="form-panel" id="panel-register">
+            <div class="field">
+                <label>用户名</label>
+                <div class="input-wrap">
+                    <input type="text" id="reg-user" placeholder="设置用户名（3-20位）" autocomplete="username">
+                    <span class="icon">&#x1F468;&#x200D;&#x1F680;</span>
+                </div>
+            </div>
+            <div class="field">
+                <label>邮箱</label>
+                <div class="input-wrap">
+                    <input type="email" id="reg-email" placeholder="请输入邮箱" autocomplete="email">
+                    <span class="icon">&#x1F4E1;</span>
+                </div>
+            </div>
+            <div class="field">
+                <label>密码</label>
+                <div class="input-wrap">
+                    <input type="password" id="reg-pwd" placeholder="设置密码（6位以上）" autocomplete="new-password">
+                    <span class="icon">&#x1F512;</span>
+                    <button class="toggle-pwd" type="button" onclick="togglePwd('reg-pwd', this)">&#x1F441;</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>确认密码</label>
+                <div class="input-wrap">
+                    <input type="password" id="reg-pwd2" placeholder="再次输入密码" autocomplete="new-password">
+                    <span class="icon">&#x1F512;</span>
+                </div>
+            </div>
+            <button class="submit-btn" onclick="doRegister()">注 册</button>
+            <div class="msg" id="reg-msg"></div>
+        </div>
+
+        <!-- 底部装饰 -->
+        <div class="footer-decor">
+            <div class="tech-badges">
+                <span>🛰️ Sentinel-2</span>
+                <span>📡 Sentinel-5P</span>
+                <span>🌍 GEE</span>
+                <span>🧠 U-Net</span>
+                <span>⚡ PyTorch</span>
+            </div>
+            <p>&copy; 2024 MWGS INC.</p>
+        </div>
+    </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  星空背景 — 多层星星 + 缓慢旋转
+// ============================================================
+(function() {
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    const COUNT = 900; // 大幅增加星星数量
+    let angle = 0;
+    const cx = () => canvas.width / 2;
+    const cy = () => canvas.height / 2;
+
+    // 星星颜色池
+    const COLORS = [
+        [200, 220, 255],  // 冷白
+        [180, 200, 255],  // 蓝白
+        [255, 240, 220],  // 暖白
+        [160, 200, 255],  // 浅蓝
+        [220, 200, 255],  // 淡紫
+    ];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    function init() {
+        resize();
+        stars = [];
+        for (let i = 0; i < COUNT; i++) {
+            const col = COLORS[Math.floor(Math.random() * COLORS.length)];
+            const layer = Math.random();  // 0=远, 1=近
+            stars.push({
+                // 相对于中心的偏移，用于旋转
+                ox: (Math.random() - 0.5) * Math.max(canvas.width, canvas.height) * 1.6,
+                oy: (Math.random() - 0.5) * Math.max(canvas.width, canvas.height) * 1.6,
+                r: layer < 0.6 ? Math.random() * 0.8 + 0.2 : Math.random() * 1.6 + 0.5,
+                a: Math.random(),
+                da: (Math.random() - 0.5) * (layer < 0.5 ? 0.005 : 0.015),
+                col: col,
+                speed: 0.00002 + layer * 0.00008  // 近处转得更快
+            });
+        }
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        angle += 0.00012; // 整体缓慢旋转
+
+        const cxv = cx(), cyv = cy();
+        for (const s of stars) {
+            s.a += s.da;
+            if (s.a > 1 || s.a < 0.1) s.da = -s.da;
+
+            // 每颗星按自身速率旋转
+            const rot = angle * (1 + s.speed * 5000);
+            const cos = Math.cos(rot), sin = Math.sin(rot);
+            const x = cxv + s.ox * cos - s.oy * sin;
+            const y = cyv + s.ox * sin + s.oy * cos;
+
+            // 跳过屏幕外的星
+            if (x < -10 || x > canvas.width + 10 || y < -10 || y > canvas.height + 10) continue;
+
+            ctx.beginPath();
+            ctx.arc(x, y, s.r, 0, Math.PI * 2);
+            const [cr, cg, cb] = s.col;
+            ctx.fillStyle = `rgba(${cr},${cg},${cb},${s.a.toFixed(2)})`;
+            ctx.fill();
+
+            // 较亮的星加辉光
+            if (s.r > 1.0 && s.a > 0.6) {
+                ctx.beginPath();
+                ctx.arc(x, y, s.r * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${cr},${cg},${cb},${(s.a * 0.12).toFixed(3)})`;
+                ctx.fill();
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', () => { resize(); init(); });
+    init();
+    draw();
+})();
+
+// ============================================================
+//  Tab 切换
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+        // 清除消息
+        document.getElementById('login-msg').textContent = '';
+        document.getElementById('reg-msg').textContent = '';
+        if (btn.dataset.tab === 'login') {
+            document.getElementById('login-captcha-input').value = '';
+            refreshLoginCaptcha();
+        }
+    });
+});
+
+// ============================================================
+//  密码可见切换
+// ============================================================
+function togglePwd(inputId, btnEl) {
+    const inp = document.getElementById(inputId);
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        btnEl.innerHTML = '&#x1F441;&#x200D;&#x1F5E8;';
+    } else {
+        inp.type = 'password';
+        btnEl.innerHTML = '&#x1F441;';
+    }
+}
+
+// ============================================================
+//  后端API地址
+// ============================================================
+const API_BASE = 'http://localhost:5000';
+let loginCaptchaValue = '';
+
+function generateCaptcha(length = 4) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < length; i++) {
+        out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+}
+
+function refreshLoginCaptcha() {
+    loginCaptchaValue = generateCaptcha(4);
+    const codeEl = document.getElementById('login-captcha-code');
+    if (codeEl) codeEl.textContent = loginCaptchaValue;
+}
+
+// ============================================================
+//  登录
+// ============================================================
+async function doLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pwd  = document.getElementById('login-pwd').value;
+    const captchaInput = document.getElementById('login-captcha-input').value.trim().toUpperCase();
+    const msg  = document.getElementById('login-msg');
+
+    if (!user || !pwd) {
+        msg.textContent = '请输入用户名和密码';
+        msg.className = 'msg error';
+        return;
+    }
+    if (!captchaInput) {
+        msg.textContent = '请输入验证码';
+        msg.className = 'msg error';
+        return;
+    }
+    if (captchaInput !== loginCaptchaValue) {
+        msg.textContent = '验证码错误，请重试';
+        msg.className = 'msg error';
+        document.getElementById('login-captcha-input').value = '';
+        refreshLoginCaptcha();
+        return;
+    }
+
+    try {
+        const res = await fetch(API_BASE + '/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pwd })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.textContent = '登录成功，正在跳转…';
+            msg.className = 'msg success';
+            localStorage.setItem('sky_user', JSON.stringify({
+                username: data.username,
+                role: data.role || 'user',
+                email: data.email || '',
+                loginTime: Date.now()
+            }));
+            setTimeout(() => { window.location.href = 'menu.html'; }, 600);
+        } else {
+            msg.textContent = data.message || '登录失败';
+            msg.className = 'msg error';
+            document.getElementById('login-captcha-input').value = '';
+            refreshLoginCaptcha();
+        }
+    } catch (e) {
+        msg.textContent = '无法连接服务器';
+        msg.className = 'msg error';
+        document.getElementById('login-captcha-input').value = '';
+        refreshLoginCaptcha();
+    }
+}
+
+// ============================================================
+//  注册
+// ============================================================
+async function doRegister() {
+    const user  = document.getElementById('reg-user').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pwd   = document.getElementById('reg-pwd').value;
+    const pwd2  = document.getElementById('reg-pwd2').value;
+    const msg   = document.getElementById('reg-msg');
+
+    if (!user || !email || !pwd || !pwd2) {
+        msg.textContent = '请填写所有字段';
+        msg.className = 'msg error';
+        return;
+    }
+    if (user.length < 3 || user.length > 20) {
+        msg.textContent = '用户名长度需在3-20位之间';
+        msg.className = 'msg error';
+        return;
+    }
+    if (pwd.length < 6) {
+        msg.textContent = '密码至少需要6位';
+        msg.className = 'msg error';
+        return;
+    }
+    if (pwd !== pwd2) {
+        msg.textContent = '两次输入的密码不一致';
+        msg.className = 'msg error';
+        return;
+    }
+
+    try {
+        const res = await fetch(API_BASE + '/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, email: email, password: pwd })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.textContent = '注册成功！请登录';
+            msg.className = 'msg success';
+            // 自动切换到登录Tab
+            setTimeout(() => {
+                document.querySelector('.tab-btn[data-tab="login"]').click();
+                document.getElementById('login-user').value = user;
+                document.getElementById('login-pwd').focus();
+            }, 800);
+        } else {
+            msg.textContent = data.message || '注册失败';
+            msg.className = 'msg error';
+        }
+    } catch (e) {
+        msg.textContent = '无法连接服务器';
+        msg.className = 'msg error';
+    }
+}
+
+// 回车提交
+document.getElementById('login-pwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('login-captcha-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('reg-pwd2').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+document.getElementById('login-captcha-code').addEventListener('click', refreshLoginCaptcha);
+refreshLoginCaptcha();
+
+// ============================================================
+//  粒子连线网络背景
+// ============================================================
+(function() {
+    const cvs = document.createElement('canvas');
+    cvs.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:4;pointer-events:none;';
+    document.body.appendChild(cvs);
+    const ctx = cvs.getContext('2d');
+    let pts = [], W, H;
+    const N = 40, DIST = 120;
+
+    function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
+    function init() {
+        resize(); pts = [];
+        for (let i = 0; i < N; i++) pts.push({
+            x: Math.random() * W, y: Math.random() * H,
+            vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+            r: Math.random() * 1.5 + 0.5
+        });
+    }
+    function frame() {
+        ctx.clearRect(0, 0, W, H);
+        for (const p of pts) {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0 || p.x > W) p.vx *= -1;
+            if (p.y < 0 || p.y > H) p.vy *= -1;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,198,255,0.4)'; ctx.fill();
+        }
+        for (let i = 0; i < pts.length; i++) {
+            for (let j = i + 1; j < pts.length; j++) {
+                const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < DIST) {
+                    ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
+                    ctx.strokeStyle = `rgba(0,198,255,${0.15 * (1 - d / DIST)})`;
+                    ctx.lineWidth = 0.5; ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize', init);
+    init(); frame();
+})();
+
+// ============================================================
+//  实时时间显示
+// ============================================================
+(function() {
+    const footer = document.querySelector('.footer-decor p');
+    if (!footer) return;
+    function tick() {
+        const now = new Date();
+        const utc8 = new Date(now.getTime() + (480 + now.getTimezoneOffset()) * 60000);
+        const ts = utc8.toLocaleTimeString('en-GB', { hour12: false });
+        footer.innerHTML = `&copy; 2024 MWGS INC. &middot; <span style="color:rgba(0,198,255,0.6)">${ts} UTC+8</span>`;
+    }
+    setInterval(tick, 1000); tick();
+})();
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,64 @@
+name: Deploy About Page To GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare static site artifact
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp -R "ui copy"/. _site/
+          if [ ! -f "_site/index.html" ]; then
+            cat > "_site/index.html" <<'EOF'
+          <!doctype html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Redirecting...</title>
+            <meta http-equiv="refresh" content="0; url=./about.html" />
+          </head>
+          <body>
+            <p>Redirecting to <a href="./about.html">about.html</a> ...</p>
+          </body>
+          </html>
+          EOF
+          fi
+          test -f "_site/about.html"
+          test -f "_site/index.html"
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

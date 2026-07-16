@@ -1,0 +1,969 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>甲烷排放智能监测指挥舱</title>
+
+  <!-- 引入字体：Orbitron (科技标题) 和 Rajdhani (科技正文) -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+  <!-- 引入 ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <!-- 引入 FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      /* 科技风配色方案 */
+      --bg-core: #041129;
+      --bg-panel: rgba(10, 30, 60, 0.74);
+      --border-color: rgba(0, 255, 242, 0.3);
+      --primary-neon: #73eeff;   /* 荧光青 */
+      --secondary-neon: #6ba9ff; /* 科技蓝 */
+      --accent-neon: #ff0055;    /* 警示红 */
+      --gold-neon: #ffd700;      /* 高亮金 */
+      --text-main: #edf6ff;
+      --text-dim: #a9c4e2;
+
+      --font-title: 'Orbitron', sans-serif;
+      --font-body: 'Rajdhani', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg-core);
+      background-image:
+              radial-gradient(circle at 12% -8%, rgba(131, 190, 255, 0.38) 0%, transparent 43%),
+              radial-gradient(circle at 88% -10%, rgba(80, 153, 255, 0.32) 0%, transparent 42%),
+              linear-gradient(180deg, #0a2343 0%, #061a33 34%, #041226 100%),
+              linear-gradient(0deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px),
+              linear-gradient(90deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 10px;
+      position: relative;
+    }
+
+    /* 扫描线背景动画 */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(180deg, rgba(0,255,242,0) 0%, rgba(0,255,242,0.02) 50%, rgba(0,255,242,0) 100%);
+      background-size: 100% 5px;
+      pointer-events: none;
+      z-index: 0;
+      animation: scanline 8s linear infinite;
+    }
+
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* === Header: 震撼的艺术字标题 === */
+    .header {
+      position: relative;
+      text-align: center;
+      padding: 30px 0 20px;
+      background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0wIDMwIEwgNTAgMzAgTCA4MCAwIEwgOTIwIDAgTCA5NTAgMzAgTCAxMDAwIDMwIiBzdHJva2U9InJnYmEoMCwgMjQzLCAyNTUsIDAuMykiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==') no-repeat bottom center;
+      background-size: 100% auto;
+    }
+
+    .header-title {
+      font-family: var(--font-title);
+      font-size: 3.5rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: transparent;
+      background: linear-gradient(180deg, #fff 0%, var(--primary-neon) 50%, #004e92 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.6));
+      position: relative;
+      display: inline-block;
+    }
+
+    .header-title::after {
+      content: "METHANE EMISSION DYNAMIC MONITOR";
+      display: block;
+      font-size: 0.8rem;
+      color: var(--primary-neon);
+      letter-spacing: 8px;
+      margin-top: 5px;
+      text-shadow: none;
+      opacity: 0.8;
+      font-family: var(--font-body);
+    }
+
+    /* === 装饰性角落（HUD风格） === */
+    .hud-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--primary-neon);
+      transition: all 0.3s ease;
+    }
+    .tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+    .tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+    .bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+    .br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+    /* === 面板样式 === */
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 2.5fr 1fr;
+      gap: 20px;
+    }
+
+    .row-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      padding: 20px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      clip-path: polygon(
+              0 0,
+              calc(100% - 20px) 0,
+              100% 20px,
+              100% 100%,
+              20px 100%,
+              0 calc(100% - 20px)
+      );
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary-neon), transparent);
+      opacity: 0.5;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 10px;
+    }
+
+    .panel-title {
+      font-family: var(--font-title);
+      font-size: 1.2rem;
+      color: var(--primary-neon);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-shadow: 0 0 5px rgba(0, 243, 255, 0.4);
+    }
+
+    /* === Alert Banner === */
+    .alert-banner {
+      background: rgba(255, 0, 85, 0.15);
+      border: 1px solid var(--accent-neon);
+      color: #ff8fa3;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 10px;
+      clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+      animation: pulse-border 2s infinite;
+    }
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(255, 0, 85, 0.5); }
+      100% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); }
+    }
+
+    /* === Charts === */
+    .chart-box {
+      height: 350px;
+      width: 100%;
+      position: relative;
+    }
+
+    /* === Stats Cards (Digital Readout) === */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-left: 3px solid var(--text-dim);
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+      background: rgba(0, 243, 255, 0.05);
+      border-left-color: var(--primary-neon);
+      transform: translateX(5px);
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: var(--font-title);
+      font-size: 1.6rem;
+      color: #fff;
+      margin-top: 5px;
+    }
+
+    .stat-value.glow-cyan { color: var(--primary-neon); text-shadow: 0 0 10px rgba(0,243,255,0.4); }
+    .stat-value.glow-gold { color: var(--gold-neon); text-shadow: 0 0 10px rgba(255,215,0,0.4); }
+    .stat-value.glow-red { color: var(--accent-neon); text-shadow: 0 0 10px rgba(255,0,85,0.4); }
+
+    /* === Controls === */
+    .controls-area {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: rgba(0,0,0,0.2);
+      padding: 15px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .tech-btn {
+      background: linear-gradient(90deg, rgba(0,243,255,0.1), rgba(0,243,255,0.0));
+      border: 1px solid var(--primary-neon);
+      color: var(--primary-neon);
+      padding: 8px 20px;
+      font-family: var(--font-title);
+      text-transform: uppercase;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+
+    .tech-btn:hover {
+      background: var(--primary-neon);
+      color: #000;
+      box-shadow: 0 0 15px var(--primary-neon);
+    }
+
+    .tech-btn.danger {
+      border-color: var(--accent-neon);
+      color: var(--accent-neon);
+      background: linear-gradient(90deg, rgba(255,0,85,0.1), rgba(255,0,85,0.0));
+    }
+
+    .tech-btn.danger:hover {
+      background: var(--accent-neon);
+      color: #fff;
+      box-shadow: 0 0 15px var(--accent-neon);
+    }
+
+    input[type="range"] {
+      appearance: none;
+      -webkit-appearance: none;
+      background: rgba(255,255,255,0.1);
+      height: 4px;
+      border-radius: 2px;
+      width: 150px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 15px; height: 15px;
+      background: var(--primary-neon);
+      border-radius: 0;
+      transform: rotate(45deg);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--primary-neon);
+    }
+
+    /* === Responsive === */
+    @media (max-width: 1200px) {
+      .grid-layout, .row-layout { grid-template-columns: 1fr; }
+      .header-title { font-size: 2rem; }
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title">
+      METHANE DYNAMIC VISUALIZATION
+    </div>
+  </header>
+
+  <!-- Alert (动态触发) -->
+  <div class="alert-banner" id="alertBanner" style="display: none;">
+    <i class="fas fa-exclamation-triangle fa-shake"></i>
+    <div style="font-family: var(--font-title); letter-spacing: 1px;" id="alertText">
+      SYSTEM NORMAL: 所有站点浓度正常。
+    </div>
+  </div>
+  <div class="alert-banner" id="normalBanner" style="background: rgba(0,200,100,0.1); border-color: #00c864; animation: none;">
+    <i class="fas fa-check-circle" style="color: #00c864;"></i>
+    <div style="font-family: var(--font-title); letter-spacing: 1px; color: #80ffb0;">
+      SYSTEM NORMAL: 所有站点甲烷浓度在安全范围内。
+    </div>
+  </div>
+
+  <!-- Top Section: Line Chart & Realtime Stats -->
+  <div class="grid-layout">
+    <div class="panel">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+
+      <div class="panel-header">
+        <i class="fas fa-chart-line" style="color: var(--primary-neon)"></i>
+        <div class="panel-title">实时浓度趋势监测 [REAL-TIME TREND]</div>
+      </div>
+      <div class="chart-box" id="lineChart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+
+      <div class="panel-header">
+        <i class="fas fa-microchip" style="color: var(--gold-neon)"></i>
+        <div class="panel-title">核心指标 [CORE METRICS]</div>
+      </div>
+
+      <div class="stats-grid" style="grid-template-columns: 1fr; gap: 10px; height: 100%; align-content: center;">
+        <div class="stat-card">
+          <div class="stat-label">今日最高峰值 (Max)</div>
+          <div class="stat-value glow-red" id="peakValue">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均浓度 (Avg)</div>
+          <div class="stat-value glow-cyan" id="avgValue">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">波动指数 (Vol)</div>
+          <div class="stat-value" id="volatilityValue">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">异常站点 (Err)</div>
+          <div class="stat-value glow-gold" id="abnormalCount">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Middle Section: Bar Chart & Station Details -->
+  <div class="row-layout">
+    <div class="panel">
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="panel-header">
+        <i class="fas fa-broadcast-tower" style="color: var(--secondary-neon)"></i>
+        <div class="panel-title">各站点实时负荷 [STATION LOAD]</div>
+      </div>
+      <div class="chart-box" id="barChart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="panel-header">
+        <i class="fas fa-list-alt" style="color: var(--primary-neon)"></i>
+        <div class="panel-title">站点详细读数 [READINGS]</div>
+      </div>
+
+      <div class="stats-grid" id="stationReadingsContainer">
+        <div class="stat-card">
+          <div class="stat-label">黄骅油田</div>
+          <div class="stat-value glow-cyan" id="hhCurrent">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">任丘油田</div>
+          <div class="stat-value glow-cyan" id="rqCurrent">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">黄骅化工厂</div>
+          <div class="stat-value glow-cyan" id="hhChemCurrent">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">南阳采油厂</div>
+          <div class="stat-value glow-cyan" id="nyCurrent">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">大港油田</div>
+          <div class="stat-value glow-cyan" id="dgCurrent">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">中海石油</div>
+          <div class="stat-value glow-cyan" id="zhCurrent">--</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
+        <div class="panel-title" style="font-size: 1rem; margin-bottom: 10px;">控制中心 / CONTROL CENTER</div>
+        <div class="controls-area">
+          <button id="toggleBtn" class="tech-btn">暂停监控</button>
+          <button id="spikeBtn" class="tech-btn danger">模拟泄漏</button>
+          <div style="display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 0.8rem;">
+            <span>WINDOW</span>
+            <input id="winInput" type="range" min="10" max="120" step="5" value="30">
+            <span id="winVal" style="color: var(--primary-neon); font-family: var(--font-title);">30</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; color: var(--text-dim); font-size: 0.8rem;">
+            <input id="smoothChk" type="checkbox" checked> <label>SMOOTH</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- 隐患点地图（中国地图底图） -->
+    <div class="panel">
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="panel-header">
+        <i class="fas fa-globe-asia" style="color: var(--primary-neon)"></i>
+        <div class="panel-title">渤海湾甲烷隐患分布 [SATELLITE HOTSPOTS]</div>
+      </div>
+      <div class="chart-box" id="hotspotMap" style="height: 420px;"></div>
+    </div>
+
+  <!-- Footer Info -->
+  <div class="panel" style="display: flex; justify-content: space-between; align-items: center; padding: 15px;">
+    <div style="color: var(--text-dim); font-size: 0.8rem;">
+      <i class="fas fa-server"></i> SERVER STATUS: <span style="color: var(--primary-neon)">ONLINE</span> | UPTIME: <span id="uptime" style="font-family: var(--font-title)">00:00:00</span>
+    </div>
+    <div style="color: var(--text-dim); font-size: 0.8rem;">
+      DATAPOINTS PROCESSED: <span id="dataPoints" style="color: var(--gold-neon); font-family: var(--font-title)">0</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:5000';
+
+  // 默认监控站点（后端无数据时使用）
+  const DEFAULT_STATIONS = {
+    line: {
+      stations: ['黄骅油田', '任丘油田', '黄骅化工厂', '南阳采油厂'],
+      coords: [
+        { lat: 38.5348, lon: 117.6791 },
+        { lat: 38.7778, lon: 116.1234 },
+        { lat: 38.3710, lon: 117.3300 },
+        { lat: 38.8500, lon: 116.8400 }
+      ],
+      ids: ['hhCurrent', 'rqCurrent', 'hhChemCurrent', 'nyCurrent'],
+      colors: ['#00f3ff', '#0066ff', '#ffd700', '#ff0055']
+    },
+    bar: {
+      stations: ['大港', '任丘', '中海', '河南', '新增'],
+      ids: ['dgCurrent', 'rqCurrent', 'zhCurrent', 'nyCurrent', 'hhChemCurrent']
+    }
+  };
+
+  // 动态站点配置（从后端加载或使用默认值）
+  let STATIONS_CONFIG = JSON.parse(JSON.stringify(DEFAULT_STATIONS));
+
+  // 从后端获取监测设备列表
+  async function fetchDevicesFromBackend() {
+    try {
+      const res = await fetch(API_BASE + '/admin/devices');
+      const data = await res.json();
+      if (data.success && data.devices && data.devices.length > 0) {
+        const onlineDevices = data.devices.filter(d => d.status === 'online');
+        if (onlineDevices.length > 0) {
+          const colorPalette = ['#00f3ff', '#0066ff', '#ffd700', '#ff0055', '#00ff88', '#ff6600', '#aa00ff'];
+          STATIONS_CONFIG.line = {
+            stations: onlineDevices.map(d => d.name),
+            coords: onlineDevices.map(d => ({ lat: d.lat || 38.5, lon: d.lon || 117.0 })),
+            ids: onlineDevices.map((d, i) => `device_${d.id}`),
+            colors: onlineDevices.map((_, i) => colorPalette[i % colorPalette.length])
+          };
+          // 动态生成站点详细读数卡片
+          updateStationReadingsUI(onlineDevices);
+          console.log('✅ 从后端加载了', onlineDevices.length, '个在线设备');
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ 获取设备列表失败，使用默认站点:', e.message);
+    }
+    return false;
+  }
+
+  // 动态更新站点读数 UI
+  function updateStationReadingsUI(devices) {
+    const container = document.getElementById('stationReadingsContainer');
+    if (!container) return;
+    // 清空现有卡片
+    container.innerHTML = '';
+    const typeIcons = {
+      '地面传感器': { icon: 'fa-broadcast-tower', color: '#00c864', label: '地面' },
+      '无人机': { icon: 'fa-helicopter', color: '#ffd700', label: '无人机' },
+      '卫星遥感': { icon: 'fa-satellite', color: '#9999ff', label: '卫星' }
+    };
+    devices.forEach((d, i) => {
+      const typeInfo = typeIcons[d.type] || { icon: 'fa-microchip', color: '#00f3ff', label: d.type || '未知' };
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = `
+        <div class="stat-label">
+          <i class="fas ${typeInfo.icon}" style="color:${typeInfo.color};margin-right:6px;"></i>
+          ${d.name}
+          <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;margin-left:6px;background:${typeInfo.color}22;color:${typeInfo.color};border:1px solid ${typeInfo.color}44;">${typeInfo.label}</span>
+        </div>
+        <div class="stat-value glow-cyan" id="device_${d.id}">--</div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  const chartData = {
+    line: {
+      ...STATIONS_CONFIG.line,
+      values: [],
+      history: [[], [], [], []],
+      realBaselines: [1900, 1900, 1900, 1900]  // 默认 ppb，将被真实数据替换
+    },
+    bar: {
+      ...STATIONS_CONFIG.bar,
+      values: []
+    },
+    updateInterval: null,
+    speed: 1000,
+    running: true
+  };
+
+  let lineChart, barChart;
+  let dataLoaded = false;
+
+  // 从后端获取真实 S5P CH4 浓度
+  async function fetchRealStationData() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+
+    const reqStations = STATIONS_CONFIG.line.stations.map((name, i) => ({
+      name: name,
+      lat: STATIONS_CONFIG.line.coords[i].lat,
+      lon: STATIONS_CONFIG.line.coords[i].lon
+    }));
+
+    try {
+      const response = await fetch(API_BASE + '/sentinel/query_stations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stations: reqStations,
+          time_start: startDate.toISOString().split('T')[0],
+          time_end: endDate.toISOString().split('T')[0],
+          gas_type: 'CH4'
+        })
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      if (data.success && data.stations) {
+        // 更新真实基线浓度
+        data.stations.forEach((s, i) => {
+          if (i < chartData.line.realBaselines.length && s.mean_concentration != null) {
+            chartData.line.realBaselines[i] = s.mean_concentration;
+          }
+        });
+        dataLoaded = true;
+        console.log('✅ 真实 CH4 数据:', chartData.line.realBaselines);
+
+        // 更新柱状图基线
+        chartData.bar.values = chartData.line.realBaselines.concat([
+          chartData.line.realBaselines.reduce((a, b) => a + b, 0) / chartData.line.realBaselines.length
+        ]);
+
+        return true;
+      }
+    } catch (err) {
+      console.warn('⚠️ 后端数据获取失败:', err.message);
+    }
+    return false;
+  }
+
+  function initCharts() {
+    const lineDom = document.getElementById('lineChart');
+    lineChart = echarts.init(lineDom);
+
+    // 用真实基线 ± 传感器噪声生成初始数据
+    for (let i = 0; i < 30; i++) {
+      const now = new Date();
+      now.setSeconds(now.getSeconds() - (30 - i));
+      const timeStr = now.toLocaleTimeString();
+
+      chartData.line.stations.forEach((_, sIdx) => {
+        const baseline = chartData.line.realBaselines[sIdx];
+        const val = baseline + (Math.random() - 0.5) * baseline * 0.02;
+        chartData.line.history[sIdx].push({
+          name: timeStr,
+          value: [timeStr, val]
+        });
+        if (i === 29) chartData.line.values[sIdx] = val;
+      });
+    }
+
+    const lineOption = {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.8)', borderColor: '#00f3ff', textStyle: { color: '#fff' } },
+      legend: { data: chartData.line.stations, textStyle: { color: '#a0aec0' }, top: 0 },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category', boundaryGap: false,
+        axisLine: { lineStyle: { color: '#2d3748' } },
+        axisLabel: { color: '#718096', fontFamily: 'Rajdhani' },
+        splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      },
+      yAxis: {
+        type: 'value', name: 'PPB',
+        min: 1300,
+        max: 2000,
+        interval: 100,
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        axisLabel: { color: '#718096', fontFamily: 'Rajdhani' }
+      },
+      series: chartData.line.stations.map((name, i) => ({
+        name: name, type: 'line', showSymbol: false, smooth: true,
+        itemStyle: { color: chartData.line.colors[i] },
+        lineStyle: { width: 2, shadowColor: chartData.line.colors[i], shadowBlur: 10 },
+        areaStyle: {
+          opacity: 0.3,
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: chartData.line.colors[i] },
+            { offset: 1, color: 'rgba(0,0,0,0)' }
+          ])
+        },
+        data: chartData.line.history[i]
+      }))
+    };
+    lineChart.setOption(lineOption);
+
+    // 柱状图
+    const barDom = document.getElementById('barChart');
+    barChart = echarts.init(barDom);
+
+    if (chartData.bar.values.length === 0) {
+      chartData.bar.values = chartData.line.realBaselines.concat([
+        chartData.line.realBaselines.reduce((a, b) => a + b, 0) / chartData.line.realBaselines.length
+      ]);
+    }
+
+    const barOption = {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.8)', borderColor: '#00f3ff' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category', data: chartData.bar.stations,
+        axisLabel: { color: '#e0f7fa', fontSize: 12, fontFamily: 'Rajdhani' },
+        axisLine: { lineStyle: { color: '#2d3748' } }
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        axisLabel: { color: '#718096', fontFamily: 'Rajdhani' }
+      },
+      series: [{
+        type: 'bar', data: chartData.bar.values, barWidth: '40%',
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#00f3ff' },
+            { offset: 0.5, color: '#0066ff' },
+            { offset: 1, color: 'rgba(0, 102, 255, 0.2)' }
+          ]),
+          borderRadius: [4, 4, 0, 0]
+        }
+      }]
+    };
+    barChart.setOption(barOption);
+
+    window.addEventListener('resize', () => { lineChart.resize(); barChart.resize(); });
+  }
+
+  // 告警去重缓存（避免同一站点短时间内重复提交）
+  const alarmSubmittedCache = {};
+  const ALARM_COOLDOWN = 60000; // 60秒内同站点不重复提交
+  
+  // 向后端提交告警记录
+  function reportAlarmsToBackend(abnormalStations, threshold) {
+    const now = Date.now();
+    abnormalStations.forEach(s => {
+      const cacheKey = s.name;
+      // 检查是否在冷却期内
+      if (alarmSubmittedCache[cacheKey] && (now - alarmSubmittedCache[cacheKey]) < ALARM_COOLDOWN) {
+        return; // 跳过，避免重复提交
+      }
+      alarmSubmittedCache[cacheKey] = now;
+      // 异步提交告警
+      fetch('http://localhost:5000/admin/alarms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          station: s.name,
+          value: s.value,
+          threshold: threshold,
+          unit: 'ppb',
+          time: new Date().toISOString().replace('T', ' ').slice(0, 19)
+        })
+      }).catch(e => console.warn('告警提交失败:', e));
+    });
+  }
+
+  // 实时更新 — 基于真实基线做传感器噪声级微波动
+  function updateData() {
+    if (!chartData.running) return;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+
+    let allValues = [];
+    chartData.line.stations.forEach((_, i) => {
+      const baseline = chartData.line.realBaselines[i];
+      const prev = chartData.line.values[i];
+      // 在真实基线附近做 ±1% 波动
+      let change = (Math.random() - 0.5) * baseline * 0.02;
+      let val = Math.max(baseline * 0.95, Math.min(baseline * 1.05, prev + change));
+
+      chartData.line.values[i] = val;
+      allValues.push(val);
+
+      chartData.line.history[i].shift();
+      chartData.line.history[i].push({ name: timeStr, value: [timeStr, val] });
+
+      const el = document.getElementById(chartData.line.ids[i]);
+      if (el) el.innerText = val.toFixed(3) + ' ppb';
+    });
+
+    lineChart.setOption({
+      series: chartData.line.stations.map((_, i) => ({
+        data: chartData.line.history[i],
+        smooth: document.getElementById('smoothChk').checked
+      }))
+    });
+
+    // 统计面板 — 使用真实数据计算
+    const maxVal = Math.max(...allValues);
+    const avgVal = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+    const realAvg = chartData.line.realBaselines.reduce((a, b) => a + b, 0) / chartData.line.realBaselines.length;
+    const volatility = Math.abs(avgVal - realAvg) / realAvg;
+
+    document.getElementById('peakValue').innerText = maxVal.toFixed(3);
+    document.getElementById('avgValue').innerText = avgVal.toFixed(3);
+    document.getElementById('volatilityValue').innerText = volatility.toFixed(4);
+
+    // 动态告警：检测超过平均值 3% 的站点
+    const alertThreshold = realAvg * 1.03;
+    const abnormalStations = [];
+    chartData.line.stations.forEach((name, i) => {
+      if (chartData.line.values[i] > alertThreshold) {
+        abnormalStations.push({ name, value: chartData.line.values[i] });
+      }
+    });
+    document.getElementById('abnormalCount').innerText = abnormalStations.length;
+
+    const alertBanner = document.getElementById('alertBanner');
+    const normalBanner = document.getElementById('normalBanner');
+    if (abnormalStations.length > 0) {
+      const stationList = abnormalStations.map(s => `${s.name}(${s.value.toFixed(1)} ppb)`).join('、');
+      document.getElementById('alertText').innerText =
+        `SYSTEM ALERT: 检测到 ${stationList} 甲烷浓度超过阈值(${alertThreshold.toFixed(0)} ppb)，请核查。`;
+      alertBanner.style.display = 'flex';
+      normalBanner.style.display = 'none';
+      // 向后端提交告警记录
+      reportAlarmsToBackend(abnormalStations, alertThreshold);
+    } else {
+      alertBanner.style.display = 'none';
+      normalBanner.style.display = 'flex';
+    }
+
+    // 柱状图波动
+    const newBarData = chartData.bar.values.map((v, idx) => {
+      const base = idx < chartData.line.realBaselines.length ? chartData.line.realBaselines[idx] : v;
+      let change = (Math.random() - 0.5) * base * 0.015;
+      return Math.max(base * 0.95, Math.min(base * 1.05, v + change));
+    });
+    chartData.bar.values = newBarData;
+    barChart.setOption({ series: [{ data: newBarData }] });
+
+    document.getElementById('dgCurrent').innerText = newBarData[0].toFixed(3) + ' ppb';
+    document.getElementById('zhCurrent').innerText = newBarData[2].toFixed(3) + ' ppb';
+
+    updateSystemStats();
+  }
+
+  let startTime = Date.now();
+  let pointsCount = 0;
+
+  function updateSystemStats() {
+    pointsCount += 9;
+    document.getElementById('dataPoints').innerText = pointsCount.toLocaleString();
+
+    const diff = Date.now() - startTime;
+    const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+    document.getElementById('uptime').innerText = `${h}:${m}:${s}`;
+  }
+
+  // 启动流程
+  document.addEventListener('DOMContentLoaded', async () => {
+    // 1. 尝试从后端获取设备列表
+    await fetchDevicesFromBackend();
+    
+    // 2. 根据设备数量动态初始化 chartData
+    const stationCount = STATIONS_CONFIG.line.stations.length;
+    chartData.line = {
+      ...STATIONS_CONFIG.line,
+      values: new Array(stationCount).fill(0),
+      history: Array.from({ length: stationCount }, () => []),
+      realBaselines: new Array(stationCount).fill(1900)
+    };
+    
+    // 3. 获取真实 S5P 数据
+    await fetchRealStationData();
+    initCharts();
+    setInterval(updateData, 1000);
+
+    const toggleBtn = document.getElementById('toggleBtn');
+    toggleBtn.addEventListener('click', () => {
+      chartData.running = !chartData.running;
+      toggleBtn.innerText = chartData.running ? "暂停监控" : "继续监控";
+      toggleBtn.classList.toggle('danger');
+    });
+
+    document.getElementById('spikeBtn').addEventListener('click', () => {
+      // 模拟泄漏 — 在真实基线上叠加异常升高
+      chartData.line.values[0] += chartData.line.realBaselines[0] * 0.1;
+      updateData();
+    });
+
+    document.getElementById('winInput').addEventListener('input', (e) => {
+      document.getElementById('winVal').innerText = e.target.value;
+    });
+
+      // === 渲染中国地图隐患点 ===
+      // 直接 fetch 中国地图 geoJSON 并注册到 ECharts（避免把 JSON 当作脚本插入导致解析错误）
+      fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+        .then(r => r.json())
+        .then(geoJson => {
+          echarts.registerMap('china', geoJson);
+          renderHotspotMap();
+        })
+        .catch(err => {
+          console.error('加载中国地图 geoJSON 失败：', err);
+        });
+    });
+
+    function renderHotspotMap() {
+      const hotspots = [
+        { name: '黄骅油田3号井', level: 'high', value: 2150, time: '2026-03-24 14:32', lat: 38.53, lon: 117.68 },
+        { name: '大港管道78km处', level: 'high', value: 2080, time: '2026-03-24 11:20', lat: 38.72, lon: 117.45 },
+        { name: '任丘采油站B区', level: 'medium', value: 2020, time: '2026-03-23 09:15', lat: 38.78, lon: 116.12 },
+        { name: '中海石油平台', level: 'medium', value: 1980, time: '2026-03-23 16:45', lat: 38.65, lon: 117.82 },
+        { name: '南阳采油厂', level: 'low', value: 1920, time: '2026-03-22 08:30', lat: 38.85, lon: 116.84 },
+        { name: '黄骅化工园区', level: 'low', value: 1890, time: '2026-03-21 14:10', lat: 38.37, lon: 117.33 }
+      ];
+      const colorMap = { high: '#ff0055', medium: '#ffd700', low: '#00f3ff' };
+      const labelMap = { high: '高风险', medium: '中风险', low: '低风险' };
+      const mapChart = echarts.init(document.getElementById('hotspotMap'));
+      mapChart.setOption({
+        backgroundColor: 'transparent',
+        geo: {
+          map: 'china',
+          roam: true,
+          zoom: 6.5,
+          center: [117.5, 38.6],
+          itemStyle: {
+            areaColor: '#0a1e3a',
+            borderColor: '#00f3ff',
+            borderWidth: 1.2,
+            shadowColor: 'rgba(0,243,255,0.15)',
+            shadowBlur: 30
+          },
+          emphasis: {
+            itemStyle: { areaColor: '#003366' }
+          },
+          regions: [{ name: '河北省', itemStyle: { areaColor: '#102a4d' } }]
+        },
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          borderColor: '#00f3ff',
+          textStyle: { color: '#fff' },
+          formatter: function(p) {
+            const d = p.data;
+            return '<b>' + d.name + '</b><br/>浓度: <span style="color:' + colorMap[d.level] + '">' + d.value[2] + ' ppb</span><br/>坐标: ' + d.lat.toFixed(2) + '°N, ' + d.lon.toFixed(2) + '°E<br/>时间: ' + d.time + '<br/>风险等级: <span style="color:' + colorMap[d.level] + '">' + labelMap[d.level] + '</span>';
+          }
+        },
+        series: [
+          {
+            name: '隐患点',
+            type: 'scatter',
+            coordinateSystem: 'geo',
+            symbol: 'circle',
+            symbolSize: function(v) { return Math.max(18, (v[2] - 1800) / 10); },
+            itemStyle: {
+              color: function(p) { return colorMap[p.data.level]; },
+              shadowBlur: 15,
+              shadowColor: 'rgba(0,0,0,0.4)'
+            },
+            label: {
+              show: true,
+              formatter: function(p) { return p.data.name; },
+              position: 'right',
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: 4,
+              padding: [2, 6]
+            },
+            data: hotspots.map(h => ({ name: h.name, value: [h.lon, h.lat, h.value], lat: h.lat, lon: h.lon, level: h.level, time: h.time }))
+          }
+        ]
+      });
+      window.addEventListener('resize', () => mapChart.resize());
+    }
+
+</script>
+</body>
+</html>
+
+

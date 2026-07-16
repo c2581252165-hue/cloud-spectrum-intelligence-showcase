@@ -1,0 +1,1066 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 | 云谱智探</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-core: #041226;
+            --bg-panel: rgba(10, 30, 60, 0.74);
+            --bg-panel-strong: rgba(15, 44, 84, 0.9);
+            --line-cyan: rgba(132, 221, 255, 0.28);
+            --line-soft: rgba(132, 221, 255, 0.14);
+            --text-main: #edf6ff;
+            --text-dim: #a9c4e2;
+            --neon-cyan: #73eeff;
+            --neon-blue: #6ba9ff;
+            --neon-orange: #ffcc73;
+            --neon-red: #ff6a90;
+            --neon-green: #7effca;
+            --font-title: 'Orbitron', sans-serif;
+            --font-data: 'Rajdhani', sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background:
+                radial-gradient(circle at 12% -6%, rgba(131, 190, 255, 0.38) 0%, transparent 43%),
+                radial-gradient(circle at 88% -10%, rgba(80, 153, 255, 0.32) 0%, transparent 42%),
+                linear-gradient(180deg, #0a2343 0%, #061a33 34%, #041226 100%);
+            min-height: 100vh;
+            font-family: var(--font-data);
+            color: var(--text-main);
+            padding-bottom: 80px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(164, 221, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(164, 221, 255, 0.06) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: radial-gradient(circle at 50% 18%, black 18%, transparent 70%);
+        }
+
+        /* Header */
+        .header {
+            backdrop-filter: blur(12px);
+            background: linear-gradient(90deg, rgba(30, 78, 138, 0.9), rgba(20, 57, 107, 0.9));
+            border-bottom: 1px solid var(--line-cyan);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 {
+            font-family: var(--font-title);
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 14px rgba(115, 238, 255, 0.45);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .header-actions .user-info {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        .header-actions .user-info strong {
+            color: var(--neon-cyan);
+        }
+        .btn-back {
+            background: rgba(115, 238, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: var(--font-data);
+            transition: all 0.3s;
+        }
+        .btn-back:hover {
+            background: var(--neon-cyan);
+            color: #05233f;
+            box-shadow: 0 10px 25px rgba(115, 238, 255, 0.35);
+            transform: translateY(-1px);
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, rgba(255, 204, 115, 0.2), rgba(255, 159, 102, 0.2));
+            border-color: rgba(255, 204, 115, 0.55);
+            color: #ffe5a8;
+        }
+        .btn-gold:hover {
+            background: linear-gradient(135deg, #ffcf7a, #ff9f66);
+            color: #3a2400;
+            box-shadow: 0 10px 25px rgba(255, 191, 107, 0.3);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            padding: 0 30px;
+            margin-top: 20px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-family: var(--font-data);
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn:hover {
+            color: var(--neon-cyan);
+        }
+        .tab-btn.active {
+            color: var(--neon-cyan);
+            border-bottom-color: var(--neon-cyan);
+        }
+
+        /* Content */
+        .content {
+            padding: 30px;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--line-soft);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .stat-card .value {
+            font-family: var(--font-title);
+            font-size: 2.5rem;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 15px rgba(115, 238, 255, 0.45);
+        }
+        .stat-card .label {
+            color: var(--text-dim);
+            margin-top: 5px;
+            font-size: 0.95rem;
+        }
+        .stat-card.warning .value { color: var(--neon-orange); text-shadow: 0 0 15px rgba(255,204,115,0.45); }
+        .stat-card.danger .value { color: var(--neon-red); text-shadow: 0 0 15px rgba(255,106,144,0.45); }
+        .stat-card.success .value { color: var(--neon-green); text-shadow: 0 0 15px rgba(126,255,202,0.45); }
+
+        /* Table */
+        .table-wrapper {
+            background: var(--bg-panel);
+            border: 1px solid var(--line-soft);
+            border-radius: 10px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+        .table-header h3 {
+            font-family: var(--font-title);
+            color: var(--neon-cyan);
+            font-size: 1.1rem;
+        }
+        .table-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: var(--font-data);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+            font-size: 0.9rem;
+        }
+        .btn-primary {
+            background: rgba(115, 238, 255, 0.14);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+        .btn-primary:hover {
+            background: var(--neon-cyan);
+            color: #05233f;
+        }
+        .btn-success {
+            background: rgba(126, 255, 202, 0.14);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+        .btn-success:hover {
+            background: var(--neon-green);
+            color: #053825;
+        }
+        .btn-danger {
+            background: rgba(255, 106, 144, 0.14);
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+        .btn-danger:hover {
+            background: var(--neon-red);
+            color: #fff;
+        }
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(132, 221, 255, 0.12);
+        }
+        th {
+            background: rgba(20, 55, 102, 0.62);
+            color: var(--neon-cyan);
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        tr:hover {
+            background: rgba(115, 238, 255, 0.07);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-online, .status-resolved { background: rgba(126, 255, 202, 0.2); color: var(--neon-green); }
+        .status-offline, .status-pending { background: rgba(255, 106, 144, 0.2); color: var(--neon-red); }
+        .status-normal { background: rgba(115, 238, 255, 0.2); color: var(--neon-cyan); }
+        .status-anomaly { background: rgba(255, 204, 115, 0.2); color: var(--neon-orange); }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-bar input, .filter-bar select {
+            background: rgba(22, 67, 126, 0.62);
+            border: 1px solid var(--line-soft);
+            color: var(--text-main);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: var(--font-data);
+            font-size: 0.95rem;
+        }
+        .filter-bar input:focus, .filter-bar select:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(115, 238, 255, 0.2);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+        }
+        .pagination button {
+            background: rgba(115, 238, 255, 0.1);
+            border: 1px solid rgba(115, 238, 255, 0.3);
+            color: var(--neon-cyan);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: var(--neon-cyan);
+            color: #05233f;
+        }
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .pagination span {
+            color: var(--text-dim);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 18, 38, 0.76);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: linear-gradient(135deg, rgba(22, 64, 120, 0.94), rgba(13, 39, 78, 0.96));
+            border: 1px solid var(--neon-cyan);
+            border-radius: 12px;
+            padding: 30px;
+            min-width: 400px;
+            max-width: 90%;
+            box-shadow: 0 0 35px rgba(115, 238, 255, 0.3);
+        }
+        .modal h3 {
+            font-family: var(--font-title);
+            color: var(--neon-cyan);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            background: rgba(22, 67, 126, 0.62);
+            border: 1px solid var(--line-soft);
+            color: var(--text-main);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: var(--font-data);
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        /* Access Denied */
+        .access-denied {
+            text-align: center;
+            padding: 80px 30px;
+        }
+        .access-denied i {
+            font-size: 5rem;
+            color: var(--neon-red);
+            margin-bottom: 20px;
+        }
+        .access-denied h2 {
+            font-family: var(--font-title);
+            color: var(--neon-red);
+            margin-bottom: 15px;
+        }
+        .access-denied p {
+            color: var(--text-dim);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--neon-cyan);
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 30px;
+            color: var(--text-dim);
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Export dropdown */
+        .export-dropdown {
+            position: relative;
+        }
+        .export-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-panel-strong);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 50;
+            min-width: 160px;
+        }
+        .export-menu.show { display: block; }
+        .export-menu a {
+            display: block;
+            padding: 12px 16px;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .export-menu a:hover {
+            background: rgba(115, 238, 255, 0.15);
+            color: var(--neon-cyan);
+        }
+    </style>
+</head>
+<body>
+    <div id="access-check">
+        <div class="loading">
+            <i class="fas fa-circle-notch fa-spin fa-3x"></i>
+            <p style="margin-top: 15px;">正在验证权限...</p>
+        </div>
+    </div>
+
+    <div id="admin-panel" style="display: none;">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> 后台管理中心</h1>
+            <div class="header-actions">
+                <button class="btn-back btn-gold" onclick="location.href='report.html'">
+                    <i class="fas fa-chart-bar"></i> 数据分析报告
+                </button>
+                <div class="user-info">
+                    <i class="fas fa-user-shield"></i>
+                    <strong id="admin-name">Admin</strong>
+                </div>
+                <button class="btn-back" onclick="location.href='main.html'">
+                    <i class="fas fa-arrow-left"></i> 返回主页
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="overview">
+                <i class="fas fa-chart-pie"></i> 系统概览
+            </button>
+            <button class="tab-btn" data-tab="users">
+                <i class="fas fa-users"></i> 用户管理
+            </button>
+            <button class="tab-btn" data-tab="devices">
+                <i class="fas fa-satellite-dish"></i> 设备管理
+            </button>
+            <button class="tab-btn" data-tab="alarms">
+                <i class="fas fa-bell"></i> 告警日志
+            </button>
+            <button class="tab-btn" data-tab="history">
+                <i class="fas fa-history"></i> 检测历史
+            </button>
+            <button class="tab-btn" data-tab="reports">
+                <i class="fas fa-file-excel"></i> 报表导出
+            </button>
+        </div>
+
+        <div class="content">
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="tab-overview">
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-card"><div class="value">-</div><div class="label">注册用户</div></div>
+                    <div class="stat-card"><div class="value">-</div><div class="label">在线设备</div></div>
+                    <div class="stat-card warning"><div class="value">-</div><div class="label">待处理告警</div></div>
+                    <div class="stat-card success"><div class="value">-</div><div class="label">检测次数</div></div>
+                </div>
+                <div class="table-wrapper">
+                    <div class="table-header">
+                        <h3>最近告警</h3>
+                    </div>
+                    <table>
+                        <thead><tr><th>站点</th><th>数值</th><th>时间</th><th>状态</th></tr></thead>
+                        <tbody id="recent-alarms"><tr><td colspan="4" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div class="tab-content" id="tab-users">
+                <div class="table-wrapper">
+                    <div class="table-header">
+                        <h3>用户列表</h3>
+                    </div>
+                    <table>
+                        <thead><tr><th>用户名</th><th>邮箱</th><th>角色</th><th>注册时间</th><th>最后登录</th><th>操作</th></tr></thead>
+                        <tbody id="users-table"><tr><td colspan="6" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Devices Tab -->
+            <div class="tab-content" id="tab-devices">
+                <div class="table-wrapper">
+                    <div class="table-header">
+                        <h3>监测设备</h3>
+                        <button class="btn btn-primary" onclick="showAddDeviceModal()">
+                            <i class="fas fa-plus"></i> 添加设备
+                        </button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>名称</th><th>位置</th><th>类型</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody id="devices-table"><tr><td colspan="6" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Alarms Tab -->
+            <div class="tab-content" id="tab-alarms">
+                <div class="filter-bar">
+                    <select id="alarm-status-filter" onchange="loadAlarms()">
+                        <option value="all">全部状态</option>
+                        <option value="pending">待处理</option>
+                        <option value="resolved">已处理</option>
+                    </select>
+                    <button class="btn btn-success" onclick="exportAlarms()">
+                        <i class="fas fa-download"></i> 导出Excel
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>站点</th><th>数值</th><th>阈值</th><th>时间</th><th>状态</th><th>处理人</th><th>操作</th></tr></thead>
+                        <tbody id="alarms-table"><tr><td colspan="7" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr></tbody>
+                    </table>
+                    <div class="pagination" id="alarms-pagination"></div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="tab-history">
+                <div class="filter-bar">
+                    <input type="text" id="history-search" placeholder="搜索气体类型/备注..." oninput="debounceHistorySearch()">
+                    <button class="btn btn-success" onclick="exportHistory()">
+                        <i class="fas fa-download"></i> 导出Excel
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>ID</th><th>位置</th><th>气体</th><th>结果</th><th>浓度</th><th>时间</th><th>操作人</th></tr></thead>
+                        <tbody id="history-table"><tr><td colspan="7" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr></tbody>
+                    </table>
+                    <div class="pagination" id="history-pagination"></div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div class="tab-content" id="tab-reports">
+                <div class="stats-grid">
+                    <div class="stat-card" style="cursor: pointer;" onclick="exportWeekly()">
+                        <i class="fas fa-calendar-week" style="font-size: 3rem; color: var(--neon-cyan); margin-bottom: 10px;"></i>
+                        <div class="label">安全周报</div>
+                        <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 8px;">点击下载本周安全报告</div>
+                    </div>
+                    <div class="stat-card" style="cursor: pointer;" onclick="exportAlarms()">
+                        <i class="fas fa-bell" style="font-size: 3rem; color: var(--neon-orange); margin-bottom: 10px;"></i>
+                        <div class="label">告警日志</div>
+                        <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 8px;">导出全部告警记录</div>
+                    </div>
+                    <div class="stat-card" style="cursor: pointer;" onclick="exportHistory()">
+                        <i class="fas fa-history" style="font-size: 3rem; color: var(--neon-green); margin-bottom: 10px;"></i>
+                        <div class="label">检测历史</div>
+                        <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 8px;">导出全部检测记录</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Denied -->
+    <div id="access-denied" style="display: none;">
+        <div class="access-denied">
+            <i class="fas fa-lock"></i>
+            <h2>访问被拒绝</h2>
+            <p>您没有管理员权限访问此页面</p>
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.href='main.html'">
+                返回主页
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal-overlay" id="device-modal">
+        <div class="modal">
+            <h3 id="device-modal-title">添加设备</h3>
+            <input type="hidden" id="device-edit-id">
+            <div class="form-group">
+                <label>设备名称</label>
+                <input type="text" id="device-name" placeholder="例：渤海1号监测站">
+            </div>
+            <div class="form-group">
+                <label>位置描述</label>
+                <input type="text" id="device-location" placeholder="例：渤海湾北部">
+            </div>
+            <div class="form-group">
+                <label>设备类型</label>
+                <select id="device-type">
+                    <option value="传感器">传感器</option>
+                    <option value="卫星">卫星</option>
+                    <option value="无人机">无人机</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>经度</label>
+                <input type="number" step="0.0001" id="device-lon" placeholder="117.0000">
+            </div>
+            <div class="form-group">
+                <label>纬度</label>
+                <input type="number" step="0.0001" id="device-lat" placeholder="38.0000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeDeviceModal()">取消</button>
+                <button class="btn btn-success" onclick="saveDevice()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Handle Alarm Modal -->
+    <div class="modal-overlay" id="alarm-modal">
+        <div class="modal">
+            <h3>处理告警</h3>
+            <input type="hidden" id="alarm-handle-id">
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="alarm-remark" rows="3" placeholder="处理说明..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeAlarmModal()">取消</button>
+                <button class="btn btn-success" onclick="handleAlarm()">确认处理</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const API_BASE = 'http://localhost:5000';
+let currentUser = null;
+
+// ======================== 初始化 ========================
+document.addEventListener('DOMContentLoaded', async () => {
+    // 检查登录
+    const stored = localStorage.getItem('sky_user');
+    if (!stored) {
+        location.href = 'login.html';
+        return;
+    }
+    currentUser = JSON.parse(stored);
+
+    // 检查管理员权限
+    if (currentUser.role !== 'admin') {
+        document.getElementById('access-check').style.display = 'none';
+        document.getElementById('access-denied').style.display = 'block';
+        return;
+    }
+
+    // 显示管理面板
+    document.getElementById('access-check').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    document.getElementById('admin-name').textContent = currentUser.username;
+
+    // Tab 切换
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            // 切换时加载数据
+            const tab = this.dataset.tab;
+            if (tab === 'overview') loadOverview();
+            if (tab === 'users') loadUsers();
+            if (tab === 'devices') loadDevices();
+            if (tab === 'alarms') loadAlarms();
+            if (tab === 'history') loadHistory();
+        });
+    });
+
+    // 初始加载
+    loadOverview();
+});
+
+// ======================== 系统概览 ========================
+async function loadOverview() {
+    try {
+        const res = await fetch(API_BASE + '/admin/stats');
+        const data = await res.json();
+        if (data.success) {
+            const s = data.stats;
+            document.getElementById('stats-grid').innerHTML = `
+                <div class="stat-card"><div class="value">${s.total_users || 0}</div><div class="label">注册用户</div></div>
+                <div class="stat-card"><div class="value">${s.online_devices || 0}/${s.total_devices || 0}</div><div class="label">在线设备</div></div>
+                <div class="stat-card warning"><div class="value">${s.pending_alarms || 0}</div><div class="label">待处理告警</div></div>
+                <div class="stat-card success"><div class="value">${s.total_detections || 0}</div><div class="label">检测次数</div></div>
+            `;
+        }
+        // 加载最近告警
+        const alarmRes = await fetch(API_BASE + '/admin/alarms?per_page=5');
+        const alarmData = await alarmRes.json();
+        if (alarmData.success && alarmData.alarms.length) {
+            document.getElementById('recent-alarms').innerHTML = alarmData.alarms.map(a => `
+                <tr>
+                    <td>${a.station || '-'}</td>
+                    <td>${a.value || 0} ${a.unit || 'ppb'}</td>
+                    <td>${a.time || '-'}</td>
+                    <td><span class="status-badge status-${a.status === 'resolved' ? 'resolved' : 'pending'}">${a.status === 'resolved' ? '已处理' : '待处理'}</span></td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('recent-alarms').innerHTML = '<tr><td colspan="4" class="empty-state">暂无告警</td></tr>';
+        }
+    } catch (e) {
+        console.error('loadOverview error', e);
+    }
+}
+
+// ======================== 用户管理 ========================
+async function loadUsers() {
+    try {
+        const res = await fetch(API_BASE + '/auth/users?admin=' + currentUser.username);
+        const data = await res.json();
+        if (data.success && data.users.length) {
+            document.getElementById('users-table').innerHTML = data.users.map(u => `
+                <tr>
+                    <td>${u.username}</td>
+                    <td>${u.email || '-'}</td>
+                    <td><span class="status-badge ${u.role === 'admin' ? 'status-online' : 'status-normal'}">${u.role === 'admin' ? '管理员' : '用户'}</span></td>
+                    <td>${u.created_at || '-'}</td>
+                    <td>${u.last_login || '-'}</td>
+                    <td>
+                        ${u.username !== currentUser.username ? `
+                            <button class="btn btn-small btn-primary" onclick="toggleUserRole('${u.username}', '${u.role}')">
+                                ${u.role === 'admin' ? '降为用户' : '升为管理员'}
+                            </button>
+                            <button class="btn btn-small btn-danger" onclick="deleteUser('${u.username}')">删除</button>
+                        ` : '<span style="color:var(--text-dim);">当前用户</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('users-table').innerHTML = '<tr><td colspan="6" class="empty-state">暂无用户</td></tr>';
+        }
+    } catch (e) {
+        console.error('loadUsers error', e);
+    }
+}
+
+async function toggleUserRole(username, currentRole) {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    if (!confirm(`确定将 ${username} 的角色改为 ${newRole === 'admin' ? '管理员' : '普通用户'}？`)) return;
+    try {
+        const res = await fetch(API_BASE + `/auth/users/${username}/role`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole, admin: currentUser.username })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadUsers();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+}
+
+async function deleteUser(username) {
+    if (!confirm(`确定删除用户 ${username}？此操作不可恢复！`)) return;
+    try {
+        const res = await fetch(API_BASE + `/auth/users/${username}?admin=${currentUser.username}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadUsers();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+}
+
+// ======================== 设备管理 ========================
+async function loadDevices() {
+    try {
+        const res = await fetch(API_BASE + '/admin/devices');
+        const data = await res.json();
+        if (data.success && data.devices.length) {
+            document.getElementById('devices-table').innerHTML = data.devices.map(d => `
+                <tr>
+                    <td>${d.id}</td>
+                    <td>${d.name || '-'}</td>
+                    <td>${d.location || '-'}</td>
+                    <td>${d.type || '-'}</td>
+                    <td><span class="status-badge status-${d.status || 'offline'}">${d.status === 'online' ? '在线' : '离线'}</span></td>
+                    <td>
+                        <button class="btn btn-small btn-primary" onclick="editDevice('${d.id}')">编辑</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteDevice('${d.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('devices-table').innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-satellite-dish"></i><p>暂无设备</p></td></tr>';
+        }
+    } catch (e) {
+        console.error('loadDevices error', e);
+    }
+}
+
+let devicesCache = [];
+function showAddDeviceModal() {
+    document.getElementById('device-modal-title').textContent = '添加设备';
+    document.getElementById('device-edit-id').value = '';
+    document.getElementById('device-name').value = '';
+    document.getElementById('device-location').value = '';
+    document.getElementById('device-type').value = '传感器';
+    document.getElementById('device-lon').value = '';
+    document.getElementById('device-lat').value = '';
+    document.getElementById('device-modal').classList.add('active');
+}
+
+async function editDevice(id) {
+    const res = await fetch(API_BASE + '/admin/devices');
+    const data = await res.json();
+    const d = data.devices.find(x => x.id === id);
+    if (!d) return alert('设备不存在');
+    document.getElementById('device-modal-title').textContent = '编辑设备';
+    document.getElementById('device-edit-id').value = d.id;
+    document.getElementById('device-name').value = d.name || '';
+    document.getElementById('device-location').value = d.location || '';
+    document.getElementById('device-type').value = d.type || '传感器';
+    document.getElementById('device-lon').value = d.lon || '';
+    document.getElementById('device-lat').value = d.lat || '';
+    document.getElementById('device-modal').classList.add('active');
+}
+
+function closeDeviceModal() {
+    document.getElementById('device-modal').classList.remove('active');
+}
+
+async function saveDevice() {
+    const editId = document.getElementById('device-edit-id').value;
+    const payload = {
+        name: document.getElementById('device-name').value.trim(),
+        location: document.getElementById('device-location').value.trim(),
+        type: document.getElementById('device-type').value,
+        lon: parseFloat(document.getElementById('device-lon').value) || 0,
+        lat: parseFloat(document.getElementById('device-lat').value) || 0,
+        operator: currentUser.username
+    };
+    if (!payload.name) return alert('请输入设备名称');
+    try {
+        const url = editId ? API_BASE + `/admin/devices/${editId}` : API_BASE + '/admin/devices';
+        const method = editId ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeDeviceModal();
+            loadDevices();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+}
+
+async function deleteDevice(id) {
+    if (!confirm('确定删除该设备？')) return;
+    try {
+        const res = await fetch(API_BASE + `/admin/devices/${id}?operator=${currentUser.username}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadDevices();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+}
+
+// ======================== 告警日志 ========================
+let alarmPage = 1;
+async function loadAlarms(page = 1) {
+    alarmPage = page;
+    const status = document.getElementById('alarm-status-filter').value;
+    try {
+        const res = await fetch(API_BASE + `/admin/alarms?page=${page}&per_page=15&status=${status}`);
+        const data = await res.json();
+        if (data.success && data.alarms.length) {
+            document.getElementById('alarms-table').innerHTML = data.alarms.map(a => `
+                <tr>
+                    <td>${a.station || '-'}</td>
+                    <td>${a.value || 0} ${a.unit || 'ppb'}</td>
+                    <td>${a.threshold || '-'}</td>
+                    <td>${a.time || '-'}</td>
+                    <td><span class="status-badge status-${a.status === 'resolved' ? 'resolved' : 'pending'}">${a.status === 'resolved' ? '已处理' : '待处理'}</span></td>
+                    <td>${a.handler || '-'}</td>
+                    <td>
+                        ${a.status !== 'resolved' ? `<button class="btn btn-small btn-success" onclick="showHandleAlarmModal('${a.id}')">处理</button>` : '<span style="color:var(--text-dim);">-</span>'}
+                    </td>
+                </tr>
+            `).join('');
+            // Pagination
+            const totalPages = Math.ceil(data.total / data.per_page);
+            document.getElementById('alarms-pagination').innerHTML = `
+                <button ${page <= 1 ? 'disabled' : ''} onclick="loadAlarms(${page - 1})"><i class="fas fa-chevron-left"></i></button>
+                <span>第 ${page} / ${totalPages} 页</span>
+                <button ${page >= totalPages ? 'disabled' : ''} onclick="loadAlarms(${page + 1})"><i class="fas fa-chevron-right"></i></button>
+            `;
+        } else {
+            document.getElementById('alarms-table').innerHTML = '<tr><td colspan="7" class="empty-state">暂无告警记录</td></tr>';
+            document.getElementById('alarms-pagination').innerHTML = '';
+        }
+    } catch (e) {
+        console.error('loadAlarms error', e);
+    }
+}
+
+function showHandleAlarmModal(id) {
+    document.getElementById('alarm-handle-id').value = id;
+    document.getElementById('alarm-remark').value = '';
+    document.getElementById('alarm-modal').classList.add('active');
+}
+
+function closeAlarmModal() {
+    document.getElementById('alarm-modal').classList.remove('active');
+}
+
+async function handleAlarm() {
+    const id = document.getElementById('alarm-handle-id').value;
+    const remark = document.getElementById('alarm-remark').value.trim();
+    try {
+        const res = await fetch(API_BASE + `/admin/alarms/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ handler: currentUser.username, remark: remark })
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeAlarmModal();
+            loadAlarms(alarmPage);
+            loadOverview(); // 刷新统计
+        } else {
+            alert(data.message || '处理失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+}
+
+// ======================== 检测历史 ========================
+let historyPage = 1;
+let historySearchTimer = null;
+function debounceHistorySearch() {
+    clearTimeout(historySearchTimer);
+    historySearchTimer = setTimeout(() => loadHistory(1), 400);
+}
+
+async function loadHistory(page = 1) {
+    historyPage = page;
+    const search = document.getElementById('history-search')?.value || '';
+    try {
+        const res = await fetch(API_BASE + `/admin/history?page=${page}&per_page=15&search=${encodeURIComponent(search)}`);
+        const data = await res.json();
+        if (data.success && data.records.length) {
+            document.getElementById('history-table').innerHTML = data.records.map(r => `
+                <tr>
+                    <td>${r.id}</td>
+                    <td>${r.lat?.toFixed(4) || '-'}, ${r.lon?.toFixed(4) || '-'}</td>
+                    <td>${r.gas_type || 'CH4'}</td>
+                    <td><span class="status-badge status-${r.result === 'anomaly' ? 'anomaly' : 'normal'}">${r.result === 'anomaly' ? '异常' : '正常'}</span></td>
+                    <td>${r.concentration || 0} ${r.unit || 'ppb'}</td>
+                    <td>${r.time || '-'}</td>
+                    <td>${r.operator || '-'}</td>
+                </tr>
+            `).join('');
+            // Pagination
+            const totalPages = Math.ceil(data.total / 15);
+            document.getElementById('history-pagination').innerHTML = `
+                <button ${page <= 1 ? 'disabled' : ''} onclick="loadHistory(${page - 1})"><i class="fas fa-chevron-left"></i></button>
+                <span>第 ${page} / ${totalPages} 页</span>
+                <button ${page >= totalPages ? 'disabled' : ''} onclick="loadHistory(${page + 1})"><i class="fas fa-chevron-right"></i></button>
+            `;
+        } else {
+            document.getElementById('history-table').innerHTML = '<tr><td colspan="7" class="empty-state">暂无检测记录</td></tr>';
+            document.getElementById('history-pagination').innerHTML = '';
+        }
+    } catch (e) {
+        console.error('loadHistory error', e);
+    }
+}
+
+// ======================== 报表导出 ========================
+function exportAlarms() {
+    window.open(API_BASE + '/admin/export/alarms', '_blank');
+}
+
+function exportHistory() {
+    window.open(API_BASE + '/admin/export/history', '_blank');
+}
+
+function exportWeekly() {
+    window.open(API_BASE + '/admin/export/weekly', '_blank');
+}
+</script>
+</body>
+</html>
+
+
+

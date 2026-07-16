@@ -1,0 +1,617 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+    <meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700;900&family=Orbitron:wght@600;700;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    
+    
+
+    <!-- 引入外部依赖 -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
+    <script src="/static/bytebuffer.min.js"></script>
+    <script src="/static/cesiumTdt.js"></script>
+
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <!-- 引入自定义CSS -->
+    <link href="css/main.css" rel="stylesheet">
+    <link href="css/cyberpunk.css" rel="stylesheet">
+    <link href="css/agent-ops.css" rel="stylesheet">
+
+    <title>云谱智探智能监测系统</title>
+    <!-- Lottie 动画播放器 -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+</head>
+<body>
+
+<!-- 顶部悬浮感应区 -->
+<div id="top-hover-zone"></div>
+<!-- 用户状态栏 -->
+<div id="user-bar">
+    <span>&#x1F6F0;</span>
+    <span id="user-display">未登录</span>
+    <a id="menu-link" href="menu.html">返回菜单</a>
+    <a id="profile-link" href="profile.html" style="display:none;">个人中心</a>
+    <a id="admin-link" href="admin.html" style="display:none;">后台管理</a>
+    <button id="logout-btn" onclick="doLogout()">退出</button>
+</div>
+<style>
+#top-hover-zone {
+    position: fixed; top: 0; left: 0; right: 0; height: 38px;
+    z-index: 1200; pointer-events: auto;
+}
+#user-bar {
+    position: fixed; top: -60px; right: 20px; z-index: 1300;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(10, 30, 60, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(132, 221, 255, 0.28);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px; color: #cde0f7;
+    transition: top 0.35s cubic-bezier(.4,0,.2,1);
+    pointer-events: auto;
+}
+#top-hover-zone:hover ~ #user-bar,
+#user-bar:hover {
+    top: 12px;
+}
+#profile-link, #admin-link, #menu-link {
+    color: #73eeff; text-decoration: none;
+    padding: 4px 10px; border-radius: 10px;
+    background: rgba(115,238,255,0.12);
+    border: 1px solid rgba(115,238,255,0.38);
+    font-size: 12px; transition: all 0.2s;
+}
+#profile-link:hover, #admin-link:hover, #menu-link:hover {
+    background: rgba(115,238,255,0.25);
+}
+#menu-link {
+    color: #7b61ff;
+    background: rgba(123,97,255,0.1);
+    border-color: rgba(123,97,255,0.35);
+}
+#menu-link:hover {
+    background: rgba(123,97,255,0.25);
+}
+#admin-link {
+    color: #ff9d00;
+    background: rgba(255,157,0,0.1);
+    border-color: rgba(255,157,0,0.3);
+}
+#admin-link:hover {
+    background: rgba(255,157,0,0.25);
+}
+#logout-btn {
+    background: rgba(248,113,113,0.15); border: 1px solid rgba(248,113,113,0.3);
+    color: #f87171; padding: 4px 12px; border-radius: 12px;
+    cursor: pointer; font-size: 12px; display: none;
+}
+
+/* 风场数据视图：上下区域统一黑色 */
+#satellite-view .view-content {
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+#satellite-view .view-content h2 {
+    margin: 0;
+    padding: 16px 0 12px;
+    color: #73eeff;
+    font-family: 'Orbitron', 'Rajdhani', 'Microsoft YaHei', sans-serif;
+    letter-spacing: 2px;
+    text-shadow:
+        0 0 8px rgba(115, 238, 255, 0.8),
+        0 0 18px rgba(80, 170, 255, 0.55);
+    text-align: center;
+    background: #000;
+}
+#satellite-view .view-content iframe {
+    display: block;
+    width: 100%;
+    height: calc(100vh - 130px);
+    border: none;
+    background: #000;
+}
+</style>
+
+<script>
+(function checkAuth() {
+    const u = localStorage.getItem('sky_user');
+    if (u) {
+        try {
+            const info = JSON.parse(u);
+            document.getElementById('user-display').textContent = info.username;
+            document.getElementById('profile-link').style.display = 'inline-block';
+            document.getElementById('logout-btn').style.display = 'inline-block';
+            if (info.role === 'admin') {
+                document.getElementById('admin-link').style.display = 'inline-block';
+            }
+        } catch(e) {
+            // 如果解析失败，清除并跳转到登录页
+            localStorage.removeItem('sky_user');
+            window.location.href = 'login.html';
+        }
+    } else {
+        // 未登录，跳转到登录页
+        window.location.href = 'login.html';
+    }
+})();
+function doLogout() {
+    localStorage.removeItem('sky_user');
+    window.location.href = 'login.html';
+}
+</script>
+
+<div class="cosmic-title">
+    <div class="title-content">
+        <img src="logo.png" class="title-logo" alt="系统logo">
+        <h1>云谱智探智能监测系统</h1>
+    </div>
+</div>
+
+<div class="view-container">
+    <!-- 主地图视图 -->
+    <div class="view active" id="main-view">
+        <!-- Cesium地球容器 -->
+        <div id="cesiumContainer" style="width: 100%; height: 100vh;"></div>
+
+        <!-- 左侧中间整合面板 -->
+        <div class="left-middle-panel panel-common">
+            <div class="map-control-panel">
+                <h3>
+                    <img src="earth-americas.png" class="l-icon" alt="地球图标">
+                    地图控制面板
+                </h3>
+                <div class="button-group">
+                    <button class="control-btn" id="btnFlyToChina">定位到中国</button>
+                    <button class="control-btn" id="btnToggleImagery">切换影像图层</button>
+                    <button class="control-btn" id="btnToggleNames">显示/隐藏地名</button>
+                    <button class="control-btn" id="btnAddMarker">添加标记点</button>
+                    <button class="control-btn" id="btnClearMarkers">清除标记点</button>
+                </div>
+            </div>
+
+            <div class="query-location-panel">
+                <h3>
+                    <img src="marker.png" class="l-icon" alt="定位图标">
+                    查询定位
+                </h3>
+                <div class="input-group">
+                    <label>经度:</label>
+                    <input type="text" id="customLongitude" placeholder="输入经度">
+                </div>
+                <div class="input-group">
+                    <label>纬度:</label>
+                    <input type="text" id="customLatitude" placeholder="输入纬度">
+                </div>
+                <button class="control-btn" id="customLocateBtn">确定</button>
+                <button class="control-btn" id="clearCustomLocationBtn">清除</button>
+            </div>
+
+            <!-- 查询面板 -->
+            <div class="poi-search-panel">
+                <h3>
+                    <img src="satellite.png" class="r-icon" alt="卫星图标">
+                    卫星数据
+                </h3>
+
+                <!-- 阈值滑动条 -->
+                <div class="slider-group">
+                    <label>甲烷阈值: <span id="thresholdValue">1.9</span> ppm</label>
+                    <input type="range" id="thresholdSlider" min="1.5" max="3.0" step="0.1" value="1.9" class="slider">
+                </div>
+
+                <!-- 新增：颜色强度滑动条 -->
+                <div class="slider-group">
+                    <label>颜色强度: <span id="intensityValue">80</span>%</label>
+                    <input type="range" id="intensitySlider" min="0" max="100" step="5" value="80" class="slider">
+                </div>
+
+                <!-- 透明度滑动条 -->
+                <div class="slider-group">
+                    <label>图层透明度: <span id="opacityValue">75</span>%</label>
+                    <input type="range" id="opacitySlider" min="0" max="100" step="5" value="75" class="slider">
+                </div>
+
+                <div class="button-group">
+                    <button class="control-btn" id="btnLoadSentinel5PCH4">加载哨兵5P甲烷图层</button>
+                    <button class="control-btn" id="btnRemoveSentinel5PCH4">移除甲烷图层</button>
+                </div>
+
+                <!-- 当前图层信息 -->
+                <div id="layerInfo" class="layer-info" style="display: none;">
+                    <div class="info-item">
+                        <span class="info-label">时间范围:</span>
+                        <span id="infoDateRange">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">当前阈值:</span>
+                        <span id="infoThreshold">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">颜色强度:</span>
+                        <span id="infoIntensity">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据展示区域（半透明左上角版本） -->
+        <div class="data-panel">
+            <h3>视图信息</h3>
+            <div class="data-item">
+                <span class="data-label">经度:</span>
+                <span class="data-value" id="lonValue">--</span>
+            </div>
+            <div class="data-item">
+                <span class="data-label">纬度:</span>
+                <span class="data-value" id="latValue">--</span>
+            </div>
+            <div class="data-item">
+                <span class="data-label">海拔:</span>
+                <span class="data-value" id="altValue">--</span>
+            </div>
+            <div class="data-item">
+                <span class="data-label">高度:</span>
+                <span class="data-value" id="heightValue">--</span>
+            </div>
+            <div class="data-item">
+                <span class="data-label">标记:</span>
+                <span class="data-value" id="markerCount">0</span>
+            </div>
+        </div>
+
+        <!-- 信息提示框 -->
+        <div class="info-tooltip" id="infoTooltip">操作提示</div>
+
+        <div class="time-search-panel panel-common">
+            <div class="time-input-group">
+                <input type="date" id="startTime">
+                <span class="time-separator">至</span>
+                <input type="date" id="endTime">
+                <button class="control-btn time-search-btn" id="timeSearchBtn">查询</button>
+            </div>
+        </div>
+
+        <!-- 右侧可收缩大窗口 -->
+        <div class="sidebar-container" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <img src="camera.png" class="l-icon" alt="监控图标">
+                    监控面板
+                </div>
+            </div>
+            <div class="sidebar-content">
+                <div class="oilfield-panel">
+                    <div class="oilfield-header">
+                        <img src="region-pin-alt.png" class="r-icon" alt="定位图标">
+                        定位列表
+                    </div>
+                    <div class="oilfield-body">
+                        <table class="location-table">
+                            <thead>
+                            <tr>
+                                <th></th>
+                                <th>城市</th>
+                                <th>名称</th>
+                                <th>经度</th>
+                                <th>纬度</th>
+                            </tr>
+                            </thead>
+                            <tbody id="locationTableBody">
+                            <!-- 黄骅（大港油田） -->
+                            <tr data-lon="117.6791" data-lat="38.5348" data-name="大港油田" data-city="黄骅">
+                                <td><div class="location-checkbox"></div></td>
+                                <td>黄骅</td>
+                                <td>大港油田</td>
+                                <td>117.6791</td>
+                                <td>38.5348</td>
+                            </tr>
+                            <!-- 任丘（任丘油田） -->
+                            <tr data-lon="116.1234" data-lat="38.7778" data-name="任丘油田" data-city="任丘">
+                                <td><div class="location-checkbox"></div></td>
+                                <td>任丘</td>
+                                <td>任丘油田</td>
+                                <td>116.1234</td>
+                                <td>38.7778</td>
+                            </tr>
+                            <!-- 黄骅 · 中海石油中捷石化有限公司 -->
+                            <tr data-lon="117.6157" data-lat="38.4591" data-name="中海石油中捷石化有限公司" data-city="黄骅">
+                                <td><div class="location-checkbox"></div></td>
+                                <td>黄骅</td>
+                                <td>中海石油中捷石化有限公司</td>
+                                <td>117.6157</td>
+                                <td>38.4591</td>
+                            </tr>
+
+                            <!-- 南阳 · 河南油田分公司第二采油厂 -->
+                            <tr data-lon="112.8429" data-lat="32.6873" data-name="河南油田分公司第二采油厂" data-city="南阳">
+                                <td><div class="location-checkbox"></div></td>
+                                <td>南阳</td>
+                                <td>河南油田分公司第二采油厂</td>
+                                <td>112.8429</td>
+                                <td>32.6873</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="oilfield-panel">
+                    <div class="oilfield-header">
+                        <img src="user.png" class="r-icon" alt="用户图标">
+                        用户输入
+                    </div>
+                    <div class="oilfield-body">
+                        <form class="user-input-form" id="userInputForm">
+                            <div class="form-group">
+                                <label for="city">城市</label>
+                                <input type="text" id="city" placeholder="例如：黄骅">
+                            </div>
+                            <div class="form-group">
+                                <label for="longitude">经度</label>
+                                <input type="text" id="longitude" placeholder="例如：117.6798">
+                            </div>
+                            <div class="form-group">
+                                <label for="latitude">纬度</label>
+                                <input type="text" id="latitude" placeholder="例如：38.5351">
+                            </div>
+                            <div class="form-group">
+                                <label for="timeRange">时间范围</label>
+                                <input type="text" id="timeRange" placeholder="例如：2025-10-01 至 2025-10-10">
+                            </div>
+                            <div class="form-group">
+                                <label for="remark">备注</label>
+                                <textarea id="remark" placeholder="请输入备注信息..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="confirm-btn" id="confirmBtn">确定</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收缩/展开按钮 -->
+        <button class="toggle-btn" id="toggleBtn">></button>
+    </div>
+    <!-- 其他视图 -->
+    <div class="view" id="model-view">
+        <div class="view-content">
+            <div class="model-view-header">
+                <div class="model-status-bar">
+                    <span id="modelConnectionStatus">🔄 连接中...</span>
+                    <span id="modelDataStatus">等待数据加载...</span>
+                </div>
+            </div>
+
+            <!-- 模型输出内容 -->
+            <div class="model-container">
+                <iframe
+                        src="mol.html"
+                        id="molIframe"
+                        style="width:100%; height:100vh; border:none; border-radius:8px;"
+                        onload="onMolIframeLoad()"
+                        onerror="onMolIframeError()">
+                </iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="view" id="visualization-view">
+        <div class="view-content">
+            <iframe
+                    src="zhexian.html"
+                    style="width:100%; height:100vh; border:none;"
+                    onload="document.getElementById('visualizationStatus')"
+                    onerror="document.getElementById('visualizationStatus')">
+            </iframe>
+        </div>
+    </div>
+
+    <div class="view" id="satellite-view">
+        <div class="view-content">
+            <h2>风场数据区</h2>
+            <iframe
+                    src="demo/index.html"
+                    style="width:100%; height:calc(100vh - 130px); border:none; background:#000; display:block;"
+                    onload="document.getElementById('satelliteStatus')"
+                    onerror="document.getElementById('satelliteStatus')">
+            </iframe>
+        </div>
+    </div>
+
+    <div class="view" id="analysis-view">
+        <div class="view-content">
+            <iframe
+                    src="analysis.html"
+                    style="width:100%; height:100vh; border:none;"
+                    onload="document.getElementById('aboutStatus')"
+                    onerror="document.getElementById('aboutStatus')">
+            </iframe>
+            <div style="padding: 20px; text-align: center; color: #666;">
+                <p>数据分析功能开发中...</p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 排放率测算视图 -->
+    <div class="view" id="flux-view">
+        <div class="view-content">
+            <iframe
+                    src="flux.html?v=20260326-1"
+                    style="width:100%; height:100vh; border:none;">
+            </iframe>
+        </div>
+    </div>
+
+    <!-- 新增的关于我们视图 -->
+    <div class="view" id="about-view">
+        <div class="view-content">
+            <iframe
+                    src="about.html"
+                    style="width:100%; height:100vh; border:none;"
+                    onload="document.getElementById('aboutStatus')"
+                    onerror="document.getElementById('aboutStatus')">
+            </iframe>
+        </div>
+    </div>
+</div>
+
+<!-- 底部导航栏 -->
+<div class="bottom-navbar">
+    <div class="nav-container">
+        <button class="nav-btn active" data-target="main-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">首页</span>
+        </button>
+        <button class="nav-btn" data-target="model-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 16V8.00002C20.9996 7.6493 20.9071 7.30483 20.7315 7.00119C20.556 6.69754 20.3037 6.44539 20 6.27002L13 2.27002C12.696 2.09449 12.3511 2.00208 12 2.00208C11.6489 2.00208 11.304 2.09449 11 2.27002L4 6.27002C3.69626 6.44539 3.44398 6.69754 3.26846 7.00119C3.09294 7.30483 3.00036 7.6493 3 8.00002V16C3.00036 16.3508 3.09294 16.6952 3.26846 16.9989C3.44398 17.3025 3.69626 17.5547 4 17.73L11 21.73C11.304 21.9056 11.6489 21.998 12 21.998C12.3511 21.998 12.696 21.9056 13 21.73L20 17.73C20.3037 17.5547 20.556 17.3025 20.7315 16.9989C20.9071 16.6952 20.9996 16.3508 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3.27002 6.95996L12 12L20.73 6.95996" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">模型输出</span>
+        </button>
+        <button class="nav-btn" data-target="visualization-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 16V8.00002C20.9996 7.6493 20.9071 7.30483 20.7315 7.00119C20.556 6.69754 20.3037 6.44539 20 6.27002L13 2.27002C12.696 2.09449 12.3511 2.00208 12 2.00208C11.6489 2.00208 11.304 2.09449 11 2.27002L4 6.27002C3.69626 6.44539 3.44398 6.69754 3.26846 7.00119C3.09294 7.30483 3.00036 7.6493 3 8.00002V16C3.00036 16.3508 3.09294 16.6952 3.26846 16.9989C3.44398 17.3025 3.69626 17.5547 4 17.73L11 21.73C11.304 21.9056 11.6489 21.998 12 21.998C12.3511 21.998 12.696 21.9056 13 21.73L20 17.73C20.3037 17.5547 20.556 17.3025 20.7315 16.9989C20.9071 16.6952 20.9996 16.3508 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3.27002 6.95996L12 12L20.73 6.95996" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">数据可视化</span>
+        </button>
+        <button class="nav-btn" data-target="satellite-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C13.3132 2 14.6136 2.25866 15.8268 2.7612C17.0401 3.26375 18.1425 4.00035 19.0711 4.92893C19.9997 5.85752 20.7362 6.95991 21.2388 8.17317C21.7413 9.38642 22 10.6868 22 12C22 13.3132 21.7413 14.6136 21.2388 15.8268C20.7362 17.0401 19.9997 18.1425 19.0711 19.0711C18.1425 19.9997 17.0401 20.7362 15.8268 21.2388C14.6136 21.7413 13.3132 22 12 22C10.6868 22 9.38642 21.7413 8.17317 21.2388C6.95991 20.7362 5.85752 19.9997 4.92893 19.0711C4.00035 18.1425 3.26375 17.0401 2.7612 15.8268C2.25866 14.6136 2 13.3132 2 12C2 10.6868 2.25866 9.38642 2.7612 8.17317C3.26375 6.95991 4.00035 5.85752 4.92893 4.92893C5.85752 4.00035 6.95991 3.26375 8.17317 2.7612C9.38642 2.25866 10.6868 2 12 2V2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 6C13.0609 6 14.0783 6.42143 14.8284 7.17157C15.5786 7.92172 16 8.93913 16 10C16 11.0609 15.5786 12.0783 14.8284 12.8284C14.0783 13.5786 13.0609 14 12 14C10.9391 14 9.92172 13.5786 9.17157 12.8284C8.42143 12.0783 8 11.0609 8 10C8 8.93913 8.42143 7.92172 9.17157 7.17157C9.92172 6.42143 10.9391 6 12 6V6Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6.35999 17C7.06039 17.6318 7.91007 18.0869 8.82999 18.324" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">风场数据</span>
+        </button>
+        <button class="nav-btn" data-target="device-data-view" onclick="window.location.href='report.html'">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">设备数据</span>
+        </button>
+        <!-- 排放率测算按钮 -->
+        <button class="nav-btn" data-target="flux-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">排放率</span>
+        </button>
+        <!-- 新增的关于我们按钮 -->
+        <button class="nav-btn" data-target="about-view">
+            <div class="nav-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <span class="nav-text">关于我们</span>
+        </button>
+    </div>
+</div>
+<!-- 引入自定义JS（注意顺序：Cesium初始化先执行，再执行依赖它的模块） -->
+<script src="js/cesium-init.js"></script>
+<script src="js/view-info.js"></script>
+<script src="js/geojson-boundaries.js"></script>
+<script src="js/webgis-engine.js"></script>
+<!-- 阶段三：环境数据与高级可视化模块 -->
+<script src="js/env-data-service.js?v=20260403-8"></script>
+<script src="js/heatmap-3d.js"></script>
+<script src="js/heatmap-canvas.js?v=20260403-15"></script>
+<script src="js/wind-particles.js?v=20260403-11"></script>
+<script src="js/effects-visibility.js?v=20260403-13"></script>
+<script src="js/info-panel-3d.js"></script>
+<script src="js/tech-marker.js?v=20260403-10"></script>
+<script src="js/animation-timeline.js?v=20260403-12"></script>
+<script src="js/performance-monitor.js"></script>
+<script src="js/sidebar.js?v=20260403-8"></script>
+<script src="js/cinematic-flyto.js?v=20260403-12"></script>
+<script src="js/cyberpunk-ui.js"></script>
+<script src="js/map-controls.js"></script>
+<script src="js/chart-modal.js"></script>
+<script src="js/time-search.js"></script>
+<script src="js/left-panel.js?v=20260403-5"></script>
+<script src="js/ai-assistant.js?v=20260327-1"></script>
+<!-- 确保这个引入在cesium-init.js之后 -->
+<script src="js/sentinel-layer.js"></script>
+<!-- 在现有的JS引入之后添加 -->
+<script src="js/bottom-nav.js"></script>
+<!-- 在现有的JS引入之后添加 -->
+<script src="js/view-manager.js?v=20260403-3"></script>
+<!-- 在现有的JS引入之后添加 -->
+<script src="js/mol-communication.js"></script>
+<!-- 智能体自动执行与闭环面板 -->
+<script src="js/agent-autopilot.js?v=20260331-1"></script>
+
+<script>
+// 底部导航栏：鼠标靠近底部时滑出，移开后收回
+(function() {
+    var navbar = document.querySelector('.bottom-navbar');
+    if (!navbar) return;
+
+    var mouseY = -1;
+    var hideTimer = null;
+    var isVisible = false;
+    var THRESHOLD = 60;
+
+    // 捕获阶段追踪鼠标Y坐标（在Cesium之前拿到事件）
+    window.addEventListener('mousemove', function(e) {
+        mouseY = e.clientY;
+    }, true);
+
+    // 定时轮询：检测鼠标位置 + navbar悬停状态
+    setInterval(function() {
+        var nearBottom = mouseY >= 0 && mouseY > window.innerHeight - THRESHOLD;
+        var onNavbar = navbar.matches(':hover');
+
+        if (nearBottom || onNavbar) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+            if (!isVisible) {
+                isVisible = true;
+                navbar.classList.add('visible');
+            }
+        } else if (isVisible && !hideTimer) {
+            hideTimer = setTimeout(function() {
+                isVisible = false;
+                navbar.classList.remove('visible');
+                hideTimer = null;
+            }, 500);
+        }
+    }, 100);
+})();
+</script>
+</body>
+</html>
+
+
+

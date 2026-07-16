@@ -1,0 +1,641 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="/js/auth-guard.js"></script>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>综合数据分析中心 | 智能指挥舱</title>
+
+    <!-- 引入未来感字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <!-- 引入 ECharts (渲染能力更强，适合大屏) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <!-- 引入 FontAwesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* === 核心配色：深空 + 霓虹 === */
+            --bg-core: #041129; /* 统一蓝调基底 */
+            --bg-glass: rgba(10, 30, 60, 0.74);
+
+            --neon-cyan: #73eeff;   /* 风能/科技主色 */
+            --neon-blue: #6ba9ff;   /* 辅助蓝 */
+            --neon-orange: #ff9d00; /* 甲烷/警告色 */
+            --neon-red: #ff0055;    /* 危险色 */
+            --neon-purple: #bc13fe; /* 装饰紫 */
+
+            --font-title: 'Orbitron', sans-serif; /* 标题字体 */
+            --font-data: 'Rajdhani', sans-serif;  /* 数据字体 */
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-core);
+            /* 复合背景：径向光晕 + 网格线 */
+            background-image:
+                    radial-gradient(circle at 12% -8%, rgba(131, 190, 255, 0.38) 0%, transparent 43%),
+                    radial-gradient(circle at 88% -10%, rgba(80, 153, 255, 0.32) 0%, transparent 42%),
+                    linear-gradient(180deg, #0a2343 0%, #061a33 34%, #041226 100%),
+                    linear-gradient(0deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px),
+                    linear-gradient(90deg, rgba(164, 221, 255, 0.06) 0%, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            color: #fff;
+            font-family: var(--font-data);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 15px;
+            position: relative;
+        }
+
+        /* 全局扫描线动画 */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(180deg, rgba(0,243,255,0) 0%, rgba(0,243,255,0.03) 50%, rgba(0,243,255,0) 100%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 0;
+            animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* === Header: 艺术字标题 === */
+        .header {
+            position: relative;
+            text-align: center;
+            padding: 20px 0 10px;
+            margin-bottom: 10px;
+        }
+
+        /* 底部装饰线 */
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 80%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .main-title {
+            font-family: var(--font-title);
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            /* 金属流光渐变字 */
+            background: linear-gradient(180deg, #fff 0%, var(--neon-cyan) 40%, #0066ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(0, 243, 255, 0.5));
+            margin-bottom: 5px;
+        }
+
+        .sub-title {
+            font-family: var(--font-data);
+            font-size: 1rem;
+            color: var(--neon-cyan);
+            letter-spacing: 6px;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        /* === 战术面板 (Glassmorphism + HUD Border) === */
+        .panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 20px;
+            position: relative;
+            /* 切角设计 */
+            clip-path: polygon(
+                    20px 0, 100% 0,
+                    100% calc(100% - 20px), calc(100% - 20px) 100%,
+                    0 100%, 0 20px
+            );
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 装饰性边框角标 */
+        .corner {
+            position: absolute; width: 15px; height: 15px;
+            border: 2px solid var(--neon-cyan);
+            transition: all 0.3s;
+        }
+        .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+        .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+        .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+        .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+        /* 鼠标悬停呼吸效果 */
+        .panel:hover .corner { border-color: #fff; box-shadow: 0 0 10px #fff; }
+
+        .panel-title {
+            font-family: var(--font-title);
+            font-size: 1.1rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.3);
+        }
+
+        .panel-title i { color: var(--neon-cyan); }
+
+        /* === 关键指标卡片 (KPI) === */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(145deg, rgba(0,243,255,0.05) 0%, rgba(0,0,0,0.2) 100%);
+            border-left: 4px solid var(--neon-cyan);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .kpi-card:hover { transform: translateY(-5px); background: rgba(0,243,255,0.1); }
+
+        .kpi-card.orange { border-left-color: var(--neon-orange); }
+        .kpi-card.orange:hover { background: rgba(255, 157, 0, 0.1); }
+
+        .kpi-label {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .kpi-value {
+            font-family: var(--font-title);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 5px;
+            text-shadow: 0 0 10px rgba(0,243,255,0.4);
+        }
+
+        .kpi-unit { font-size: 1rem; color: rgba(255,255,255,0.4); margin-left: 5px; font-family: var(--font-data); }
+
+        /* 动态条纹背景 */
+        .kpi-card::after {
+            content: '';
+            position: absolute; right: -10px; top: -10px;
+            width: 60px; height: 60px;
+            background: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.03) 5px, rgba(255,255,255,0.03) 10px);
+            border-radius: 50%;
+        }
+
+        /* === 图表区域 === */
+        .row-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-box {
+            width: 100%;
+            height: 320px;
+        }
+
+        /* === Footer === */
+        .footer {
+            text-align: center;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 15px;
+            font-family: var(--font-title);
+            letter-spacing: 2px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+            .row-layout { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+            .main-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 头部：艺术字与光效 -->
+    <header class="header">
+        <div class="main-title">INTEGRATED DATA CENTER</div>
+        <div class="sub-title">WIND ENERGY & METHANE EMISSION JOINT MONITORING</div>
+    </header>
+
+    <!-- 核心指标行 -->
+    <div class="panel">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+
+        <div class="panel-title">
+            <i class="fas fa-tachometer-alt"></i> 实时核心遥测 / CORE TELEMETRY
+        </div>
+
+        <div class="kpi-grid">
+            <!-- 风速 -->
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fas fa-wind"></i> AVG WIND SPEED <span id="wind-source-tag" style="font-size:0.6em;opacity:0.5">(加载中)</span></div>
+                <div class="kpi-value" id="val-wind">--<span class="kpi-unit">m/s</span></div>
+            </div>
+
+            <!-- 效率 -->
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fas fa-bolt"></i> TURBINE EFFICIENCY</div>
+                <div class="kpi-value" style="color: var(--neon-cyan);" id="val-eff">--<span class="kpi-unit">%</span></div>
+            </div>
+
+            <!-- 甲烷 -->
+            <div class="kpi-card orange">
+                <div class="kpi-label"><i class="fas fa-smog"></i> AVG CH4 LEVEL</div>
+                <div class="kpi-value" style="color: var(--neon-orange);" id="val-ch4">--<span class="kpi-unit">ppb</span></div>
+            </div>
+
+            <!-- 警报 -->
+            <div class="kpi-card orange">
+                <div class="kpi-label"><i class="fas fa-exclamation-triangle"></i> ACTIVE ALERTS</div>
+                <div class="kpi-value" style="color: var(--neon-red); text-shadow: 0 0 15px var(--neon-red);" id="val-alert">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第一排图表：折线趋势 -->
+    <div class="row-layout">
+        <div class="panel">
+            <div class="corner bl"></div><div class="corner br"></div>
+            <div class="panel-title"><i class="fas fa-wind"></i> 风速实时趋势 / WIND TREND</div>
+            <div id="chart-wind-line" class="chart-box"></div>
+        </div>
+
+        <div class="panel">
+            <div class="corner bl"></div><div class="corner br"></div>
+            <div class="panel-title"><i class="fas fa-burn"></i> 甲烷浓度监测 / CH4 MONITOR</div>
+            <div id="chart-ch4-line" class="chart-box"></div>
+        </div>
+    </div>
+
+    <!-- 第二排图表：分布分析 -->
+    <div class="row-layout">
+        <div class="panel">
+            <div class="corner bl"></div><div class="corner br"></div>
+            <div class="panel-title"><i class="fas fa-map-marked-alt"></i> 风场产能分布 / YIELD DIST</div>
+            <div id="chart-wind-pie" class="chart-box"></div>
+        </div>
+
+        <div class="panel">
+            <div class="corner bl"></div><div class="corner br"></div>
+            <div class="panel-title"><i class="fas fa-industry"></i> 排放源溯源占比 / SOURCE RATIO</div>
+            <div id="chart-ch4-pie" class="chart-box"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        SYSTEM STATUS: <span id="sys-status">CONNECTING...</span> // DATA SOURCE: Sentinel-5P GEE // © 2025 CYBER-VISUAL LAB
+    </div>
+
+</div>
+
+<script>
+    const API_BASE = 'http://localhost:5000';
+
+    // 监控站点（真实坐标）
+    const STATIONS = [
+        { name: '大港油田', lat: 38.5348, lon: 117.6791 },
+        { name: '任丘油田', lat: 38.7778, lon: 116.1234 },
+        { name: '黄骅化工', lat: 38.3710, lon: 117.3300 },
+        { name: '南阳采油', lat: 38.8500, lon: 116.8400 }
+    ];
+
+    // 初始化 ECharts 实例
+    const doms = {
+        windLine: document.getElementById('chart-wind-line'),
+        ch4Line: document.getElementById('chart-ch4-line'),
+        windPie: document.getElementById('chart-wind-pie'),
+        ch4Pie: document.getElementById('chart-ch4-pie')
+    };
+
+    const charts = {
+        windLine: echarts.init(doms.windLine),
+        ch4Line: echarts.init(doms.ch4Line),
+        windPie: echarts.init(doms.windPie),
+        ch4Pie: echarts.init(doms.ch4Pie)
+    };
+
+    const axisStyle = {
+        axisLine: { lineStyle: { color: '#2c3e50' } },
+        axisLabel: { color: '#5c7c9e', fontFamily: 'Rajdhani' },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+    };
+
+    // 数据缓存
+    let timeData = [];
+    let windData = [];
+    let ch4Data = [];
+    let realStationData = null;  // 后端返回的真实数据
+    let realWindSpeed = null;    // 后端返回的真实风速
+    let dataLoaded = false;
+
+    // 启动时从后端获取真实数据
+    async function fetchRealData() {
+        const sysStatus = document.getElementById('sys-status');
+        sysStatus.textContent = 'FETCHING S5P DATA...';
+        sysStatus.style.color = '#ffd700';
+
+        // 使用最近30天的时间范围
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - 30);
+
+        const timeStart = startDate.toISOString().split('T')[0];
+        const timeEnd = endDate.toISOString().split('T')[0];
+
+        try {
+            // 并行获取 CH4 和风速数据
+            const [ch4Response, windResponse] = await Promise.all([
+                fetch(API_BASE + '/sentinel/query_stations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stations: STATIONS,
+                        time_start: timeStart,
+                        time_end: timeEnd,
+                        gas_type: 'CH4'
+                    })
+                }),
+                fetch(API_BASE + '/sentinel/query_wind', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stations: STATIONS,
+                        time_start: timeStart,
+                        time_end: timeEnd
+                    })
+                }).catch(e => { console.warn('风速 API 失败:', e); return null; })
+            ]);
+
+            if (!ch4Response.ok) throw new Error(`HTTP ${ch4Response.status}`);
+            const data = await ch4Response.json();
+
+            // 处理风速数据
+            if (windResponse && windResponse.ok) {
+                const windResult = await windResponse.json();
+                if (windResult.success && windResult.stations) {
+                    const validWind = windResult.stations.filter(s => s.wind_speed != null);
+                    if (validWind.length > 0) {
+                        realWindSpeed = validWind.reduce((sum, s) => sum + s.wind_speed, 0) / validWind.length;
+                        console.log('✅ 真实风速:', realWindSpeed.toFixed(2), 'm/s');
+                    }
+                }
+            }
+
+            if (data.success && data.stations) {
+                realStationData = data.stations;
+                dataLoaded = true;
+
+                // 用真实数据初始化图表
+                const avgConc = realStationData
+                    .filter(s => s.mean_concentration != null)
+                    .reduce((sum, s) => sum + s.mean_concentration, 0) /
+                    Math.max(1, realStationData.filter(s => s.mean_concentration != null).length);
+
+                const windBase = realWindSpeed || 5.0;
+
+                // 填充历史数据（用真实均值 ± 传感器噪声）
+                for (let i = 0; i < 20; i++) {
+                    timeData.push(new Date(Date.now() - (20 - i) * 3000).toLocaleTimeString());
+                    ch4Data.push((avgConc + (Math.random() - 0.5) * avgConc * 0.02).toFixed(4));
+                    windData.push((windBase + (Math.random() - 0.5) * windBase * 0.1).toFixed(1));
+                }
+
+                sysStatus.textContent = realWindSpeed ? 'ONLINE — REAL DATA' : 'ONLINE — REAL CH4 / WIND SIMULATED';
+                sysStatus.style.color = '#00f3ff';
+
+                // 更新饼图为真实站点贡献
+                updatePieChartsWithRealData();
+                // 立即更新KPI
+                updateKPIWithRealData();
+
+                console.log('✅ 真实 S5P 数据加载成功:', realStationData);
+            } else {
+                throw new Error(data.error || '数据为空');
+            }
+        } catch (err) {
+            console.warn('⚠️ 后端数据获取失败，等待重试:', err.message);
+            sysStatus.textContent = 'OFFLINE — 等待后端连接';
+            sysStatus.style.color = '#ff0055';
+
+            // 填充占位符
+            for (let i = 0; i < 20; i++) {
+                timeData.push(new Date(Date.now() - (20 - i) * 3000).toLocaleTimeString());
+                ch4Data.push('--');
+                windData.push('--');
+            }
+        }
+    }
+
+    function updatePieChartsWithRealData() {
+        if (!realStationData) return;
+
+        const validStations = realStationData.filter(s => s.mean_concentration != null);
+        const colors = ['#ff9d00', '#ff0055', '#ffd700', '#00f3ff'];
+
+        // CH4 来源占比 — 用各站点浓度占总浓度的比例
+        const totalConc = validStations.reduce((s, st) => s + st.mean_concentration, 0);
+        const ch4PieData = validStations.map((s, i) => ({
+            value: ((s.mean_concentration / totalConc) * 100).toFixed(1),
+            name: s.name,
+            itemStyle: { color: colors[i % colors.length] }
+        }));
+
+        charts.ch4Pie.setOption({
+            series: [{ data: ch4PieData }]
+        });
+
+        // 风场分布 — 用站点地理区域分布
+        const windPieData = validStations.map((s, i) => ({
+            value: (100 / validStations.length).toFixed(0),
+            name: s.name,
+            itemStyle: { color: ['#00f3ff', '#0066ff', '#bc13fe', '#444'][i % 4] }
+        }));
+        charts.windPie.setOption({
+            series: [{ data: windPieData }]
+        });
+    }
+
+    function updateKPIWithRealData() {
+        if (!realStationData) return;
+
+        const validStations = realStationData.filter(s => s.mean_concentration != null);
+        if (validStations.length === 0) return;
+
+        const avgCH4 = validStations.reduce((s, st) => s + st.mean_concentration, 0) / validStations.length;
+        const maxCH4 = Math.max(...validStations.map(s => s.max_concentration || s.mean_concentration));
+
+        document.getElementById('val-ch4').innerHTML = `${avgCH4.toFixed(2)}<span class="kpi-unit">ppb</span>`;
+        const windDisplay = realWindSpeed ? realWindSpeed.toFixed(1) : '5.0';
+        document.getElementById('val-wind').innerHTML = `${windDisplay}<span class="kpi-unit">m/s</span>`;
+        document.getElementById('wind-source-tag').textContent = realWindSpeed ? '(ERA5)' : '(模拟)';
+
+        // 检测率作为效率指标（S5P CH4 数据单位为 ppb，背景值约 1850 ppb）
+        const detectionRate = validStations.filter(s => s.mean_concentration > 1850).length / validStations.length;
+        document.getElementById('val-eff').innerHTML = `${((1 - detectionRate) * 100).toFixed(0)}<span class="kpi-unit">%</span>`;
+
+        // 高浓度站点数作为告警（>1900 ppb 为异常）
+        const alertCount = validStations.filter(s => s.mean_concentration > 1900).length;
+        const alertEl = document.getElementById('val-alert');
+        alertEl.innerText = alertCount;
+        alertEl.style.textShadow = alertCount > 0 ? "0 0 20px #ff0055" : "none";
+    }
+
+    // 初始化折线图选项
+    function initLineCharts() {
+        const optionWindLine = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.8)', borderColor: '#00f3ff', textStyle: {color:'#fff'} },
+            grid: { top: 30, right: 20, bottom: 20, left: 40, containLabel: true },
+            xAxis: { type: 'category', data: timeData, boundaryGap: false, ...axisStyle },
+            yAxis: { type: 'value', name: 'm/s', ...axisStyle },
+            series: [{
+                name: 'Wind Speed',
+                type: 'line',
+                smooth: true,
+                symbol: 'none',
+                data: windData,
+                lineStyle: { width: 3, color: '#00f3ff', shadowColor: '#00f3ff', shadowBlur: 10 },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(0, 243, 255, 0.4)' },
+                        { offset: 1, color: 'rgba(0, 243, 255, 0)' }
+                    ])
+                }
+            }]
+        };
+
+        const optionCh4Line = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.8)', borderColor: '#ff9d00', textStyle: {color:'#fff'} },
+            grid: { top: 30, right: 20, bottom: 20, left: 40, containLabel: true },
+            xAxis: { type: 'category', data: timeData, boundaryGap: false, ...axisStyle },
+            yAxis: { type: 'value', name: 'ppb', ...axisStyle },
+            series: [{
+                name: 'CH4 Level',
+                type: 'line',
+                smooth: true,
+                symbol: 'none',
+                data: ch4Data,
+                lineStyle: { width: 3, color: '#ff9d00', shadowColor: '#ff9d00', shadowBlur: 10 },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(255, 157, 0, 0.4)' },
+                        { offset: 1, color: 'rgba(255, 157, 0, 0)' }
+                    ])
+                }
+            }]
+        };
+
+        // 饼图初始骨架
+        const optionWindPie = {
+            tooltip: { trigger: 'item' },
+            legend: { bottom: 0, textStyle: { color: '#aab' } },
+            series: [{ name: 'Region', type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
+                itemStyle: { borderRadius: 5, borderColor: '#000', borderWidth: 2 }, label: { color: '#fff' },
+                data: [{ value: 1, name: '加载中...', itemStyle: { color: '#333' } }]
+            }]
+        };
+
+        const optionCh4Pie = {
+            tooltip: { trigger: 'item' },
+            legend: { bottom: 0, textStyle: { color: '#aab' } },
+            series: [{ name: 'Source', type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
+                itemStyle: { borderRadius: 5, borderColor: '#000', borderWidth: 2 }, label: { color: '#fff' },
+                data: [{ value: 1, name: '加载中...', itemStyle: { color: '#333' } }]
+            }]
+        };
+
+        charts.windLine.setOption(optionWindLine);
+        charts.ch4Line.setOption(optionCh4Line);
+        charts.windPie.setOption(optionWindPie);
+        charts.ch4Pie.setOption(optionCh4Pie);
+    }
+
+    // 实时更新 — 基于真实数据做微小传感器噪声级波动
+    function startRealTimeUpdate() {
+        setInterval(() => {
+            if (!dataLoaded) return;
+
+            const now = new Date().toLocaleTimeString();
+            const validStations = realStationData.filter(s => s.mean_concentration != null);
+            if (validStations.length === 0) return;
+
+            const avgConc = validStations.reduce((s, st) => s + st.mean_concentration, 0) / validStations.length;
+
+            // 在真实均值附近做 ±1% 的传感器噪声波动
+            const newCh4 = (avgConc + (Math.random() - 0.5) * avgConc * 0.02).toFixed(4);
+            const windBase = realWindSpeed || 5.0;
+            const newWind = (windBase + (Math.random() - 0.5) * windBase * 0.1).toFixed(1);
+
+            timeData.shift(); timeData.push(now);
+            windData.shift(); windData.push(newWind);
+            ch4Data.shift(); ch4Data.push(newCh4);
+
+            charts.windLine.setOption({ xAxis: { data: timeData }, series: [{ data: windData }] });
+            charts.ch4Line.setOption({ xAxis: { data: timeData }, series: [{ data: ch4Data }] });
+
+            document.getElementById('val-wind').innerHTML = `${newWind}<span class="kpi-unit">m/s</span>`;
+            document.getElementById('val-ch4').innerHTML = `${newCh4}<span class="kpi-unit">ppb</span>`;
+
+            // 效率与告警基于真实阈值（>1900 ppb）
+            const highCount = validStations.filter(s => s.mean_concentration > 1900).length;
+            const eff = ((1 - highCount / validStations.length) * 100).toFixed(0);
+            document.getElementById('val-eff').innerHTML = `${eff}<span class="kpi-unit">%</span>`;
+
+            const alertEl = document.getElementById('val-alert');
+            alertEl.innerText = highCount;
+            alertEl.style.textShadow = highCount > 0 ? "0 0 20px #ff0055" : "none";
+
+        }, 3000);
+    }
+
+    // 响应式
+    window.addEventListener('resize', () => {
+        Object.values(charts).forEach(chart => chart.resize());
+    });
+
+    // 启动流程
+    initLineCharts();
+    fetchRealData().then(() => {
+        startRealTimeUpdate();
+    });
+
+</script>
+</body>
+</html>
+
+
