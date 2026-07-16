@@ -46,13 +46,7 @@ docs/           效果图说明
 
 ![系统预览 08](docs/images/preview-08.png)
 
-## 脱敏说明
 
-- 已删除真实 `.env`。
-- 已删除 Google 服务账号私钥 JSON。
-- 已移除硬编码大模型 API Key、地图 token、个人联系方式。
-- 已移除 `.venv`、安装包、模型权重、遥感数据、日志、运行缓存和其他非代码大文件。
-- GEE、地图和大模型能力需通过 `backend/.env.example` 自行配置。
 
 ## 版权声明
 
