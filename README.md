@@ -28,7 +28,7 @@ docs/           效果图说明
 
 ## 效果预览
 
-以下为系统运行界面截图，更多截图见 [docs/preview.md](docs/preview.md)。
+以下为系统运行界面截图，完整截图见 [docs/preview.md](docs/preview.md)。
 
 ![系统预览 01](docs/images/preview-01.png)
 
@@ -41,6 +41,10 @@ docs/           效果图说明
 ![系统预览 05](docs/images/preview-05.png)
 
 ![系统预览 06](docs/images/preview-06.png)
+
+![系统预览 07](docs/images/preview-07.png)
+
+![系统预览 08](docs/images/preview-08.png)
 
 ## 脱敏说明
 
